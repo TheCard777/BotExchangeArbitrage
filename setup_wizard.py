@@ -109,12 +109,18 @@ def choose_exchanges() -> list[str]:
 def choose_pairs() -> list[str]:
     print()
     print(f"Paires a surveiller par defaut : {', '.join(DEFAULT_PAIRS)}")
-    raw = ask(
-        "Appuie sur Entree pour garder ce choix, ou tape tes paires separees par des virgules"
-        " (ex: BTC/USDT,SOL/USDT)",
-        ",".join(DEFAULT_PAIRS),
-    )
-    return [p.strip().upper() for p in raw.split(",") if p.strip()]
+    while True:
+        raw = ask(
+            "Appuie sur Entree pour garder ce choix, ou tape tes paires separees par des virgules"
+            " (ex: BTC/USDT,SOL/USDT)",
+            ",".join(DEFAULT_PAIRS),
+        )
+        pairs = [p.strip().upper() for p in raw.split(",") if p.strip()]
+        invalid = [p for p in pairs if len(p.split("/")) != 2 or not all(p.split("/"))]
+        if invalid:
+            print(f"  -> format invalide : {', '.join(invalid)}. Utilise BASE/COTATION, ex: BTC/USDT")
+            continue
+        return pairs
 
 
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str]]:
@@ -186,7 +192,7 @@ def main() -> None:
         print()
         budget = ask("Montant maximum a risquer par trade, en USDT", "50")
         try:
-            max_trade_size_quote = float(budget)
+            max_trade_size_quote = float(budget.replace(",", "."))
         except ValueError:
             max_trade_size_quote = 50.0
 
