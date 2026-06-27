@@ -1,0 +1,39 @@
+# Arbitrage bot configuration.
+#
+# dry_run: true  -> scan and log opportunities only, never place real orders.
+# dry_run: false -> place real orders using the API keys in .env. Use with care.
+dry_run: true
+
+# How often to re-scan all pairs, in seconds.
+scan_interval_seconds: 10
+
+# Exchanges to compare. Each id must match a ccxt exchange id and have
+# matching API_KEY / API_SECRET entries in .env (see .env.example).
+exchanges:
+  - binance
+  - kraken
+
+# Trading pairs to watch for arbitrage opportunities, in ccxt symbol format.
+pairs:
+  - BTC/USDT
+  - ETH/USDT
+  - SOL/USDT
+
+# Minimum net profit (after both exchanges' taker fees) required to act on
+# an opportunity, expressed as a fraction (0.005 = 0.5%).
+min_profit_threshold: 0.005
+
+# Maximum amount of quote currency (e.g. USDT) to commit to a single trade.
+max_trade_size_quote: 100
+
+# Maximum fraction of an exchange's available balance to use per trade,
+# as an extra safety cap on top of max_trade_size_quote.
+max_balance_fraction_per_trade: 0.5
+
+# Allowed slippage between the price seen when scanning and the price
+# actually filled, expressed as a fraction. Orders are aborted if exceeded.
+max_slippage: 0.002
+
+logging:
+  level: INFO
+  file: logs/arbitrage.log
