@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+trap 'echo ""; read -p "Appuie sur Entree pour fermer cette fenetre..." _' EXIT
 
 cd "$(dirname "$0")"
 
