@@ -15,21 +15,49 @@ logger = logging.getLogger("arbitrage.main")
 
 
 async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, delay_seconds: float = 5) -> None:
+    """Connect to every configured exchange, retrying only the ones still
+    failing on each attempt. An exchange that never connects is dropped
+    instead of blocking the others — one flaky/unreachable exchange
+    shouldn't stop the bot from running on the rest.
+    """
+    remaining = dict(scanner.clients)
     for attempt in range(1, attempts + 1):
-        try:
-            await scanner.load_markets()
+        results = await asyncio.gather(
+            *(client.load_markets() for client in remaining.values()),
+            return_exceptions=True,
+        )
+        failures = {
+            exchange_id: result
+            for exchange_id, result in zip(remaining.keys(), results)
+            if isinstance(result, Exception)
+        }
+        if not failures:
             return
-        except Exception as e:
-            if attempt == attempts:
-                raise
-            logger.warning(
-                "Connexion aux exchanges impossible (essai %d/%d) : %s — nouvelle tentative dans %ds",
-                attempt,
-                attempts,
-                e,
-                delay_seconds,
-            )
-            await asyncio.sleep(delay_seconds)
+
+        if attempt == attempts:
+            for exchange_id, error in failures.items():
+                logger.warning(
+                    "%s reste inaccessible apres %d tentatives (%s) — exchange ignore pour cette session",
+                    exchange_id,
+                    attempts,
+                    error,
+                )
+                await scanner.clients[exchange_id].close()
+                del scanner.clients[exchange_id]
+            break
+
+        logger.warning(
+            "Connexion aux exchanges impossible (essai %d/%d) : %s — nouvelle tentative dans %ds",
+            attempt,
+            attempts,
+            ", ".join(failures),
+            delay_seconds,
+        )
+        remaining = {exchange_id: remaining[exchange_id] for exchange_id in failures}
+        await asyncio.sleep(delay_seconds)
+
+    if len(scanner.clients) < 2:
+        raise RuntimeError("Pas assez d'exchanges connectes (minimum 2) pour comparer les prix.")
 
 
 async def run() -> None:
