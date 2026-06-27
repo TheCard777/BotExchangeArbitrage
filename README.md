@@ -1,78 +1,109 @@
-# Crypto Arbitrage Bot
+# Bot d'arbitrage crypto
 
-Scans configured exchanges for inter-exchange arbitrage opportunities on a
-set of trading pairs, and (optionally) executes them automatically.
+Compare les prix entre plusieurs exchanges crypto et peut trader
+automatiquement les écarts de prix rentables.
 
-## ⚠️ Read before running with real money
+## Démarrage rapide (débutants)
 
-- This bot can place **real market orders with real funds** when
-  `dry_run: false`. Market orders can fill at worse prices than expected,
-  exchange APIs can fail mid-sequence, and the buy leg can fill while the
-  sell leg fails, leaving you with an unhedged position.
-- Inter-exchange arbitrage requires balances **already sitting on both
-  exchanges** (quote currency on the buy side, base currency on the sell
-  side) — there's no time to transfer crypto between exchanges before the
-  price gap disappears.
-- Start with `dry_run: true` and small `max_trade_size_quote` values. Watch
-  the logs for at least a few days before considering live trading.
-- You are solely responsible for any funds you trade with this bot.
+1. **Installer** (crée l'environnement et installe tout automatiquement) :
 
-## Setup
+   ```bash
+   ./install.sh
+   ```
+
+   Un assistant va te poser quelques questions simples (exchanges, paires à
+   surveiller, etc.). Si tu n'as pas encore de clés API, choisis le **mode
+   démonstration** : le bot fonctionnera sans rien risquer, juste pour te
+   montrer les opportunités qu'il détecte.
+
+2. **Lancer** le bot :
+
+   ```bash
+   ./start.sh
+   ```
+
+3. Pour changer la configuration plus tard (ajouter des clés API, passer en
+   mode réel, changer les paires...), relance simplement `./install.sh`.
+
+Sur Windows, utilise Git Bash ou WSL pour exécuter ces commandes `.sh`.
+
+## ⚠️ À lire avant de passer en argent réel
+
+- En mode réel (`dry_run: false`), le bot place de **vrais ordres avec de
+  l'argent réel**. Un ordre peut s'exécuter à un prix différent de celui
+  prévu, l'API d'un exchange peut échouer en cours de route, et la jambe
+  d'achat peut être exécutée alors que la jambe de vente échoue, te
+  laissant avec une position ouverte non couverte.
+- L'arbitrage inter-exchange suppose que tu as **déjà des fonds sur chaque
+  exchange** (la monnaie de cotation côté achat, la monnaie de base côté
+  vente) — il n'y a pas le temps de transférer des cryptos entre exchanges
+  avant que l'écart de prix ne disparaisse.
+- Commence toujours par le mode démonstration et observe les logs plusieurs
+  jours avant d'envisager le mode réel.
+- Utilise des clés API avec uniquement les droits de **trading**, jamais de
+  droit de retrait.
+- Tu es seul responsable des fonds que tu engages avec ce bot.
+
+## Configuration manuelle (avancé)
+
+Si tu préfères éditer les fichiers toi-même plutôt que d'utiliser
+`./install.sh` :
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # then fill in your real API keys
+cp .env.example .env   # puis renseigne tes vraies cles API
 ```
 
-Edit `config.yaml`:
+Dans `config.yaml` :
 
-- `exchanges`: ccxt exchange ids to compare (must match `.env` key prefixes)
-- `pairs`: trading pairs to watch, ccxt symbol format (e.g. `BTC/USDT`)
-- `min_profit_threshold`: minimum net profit (after both exchanges' taker
-  fees) required to act, as a fraction (`0.005` = 0.5%)
-- `max_trade_size_quote`: cap on quote-currency size per trade
-- `dry_run`: keep `true` until you've validated behavior in the logs
+- `exchanges` : identifiants ccxt des exchanges à comparer (doivent
+  correspondre aux préfixes des clés dans `.env`)
+- `pairs` : paires à surveiller, format ccxt (ex. `BTC/USDT`)
+- `min_profit_threshold` : profit net minimum (après frais des deux
+  exchanges) pour agir, en fraction (`0.005` = 0.5 %)
+- `max_trade_size_quote` : plafond de taille de trade en monnaie de
+  cotation
+- `dry_run` : garder `true` tant que tu n'as pas validé le comportement
+  dans les logs
 
-API keys only need **trading** permissions — never enable withdrawal
-permissions on keys used by this bot.
-
-## Run
+## Lancer le bot manuellement
 
 ```bash
-python main.py
+.venv/bin/python main.py
 ```
 
-Logs are written to stdout and to the file configured under `logging.file`
-(default `logs/arbitrage.log`).
+Les logs s'affichent dans le terminal et sont écrits dans le fichier
+configuré sous `logging.file` (par défaut `logs/arbitrage.log`).
 
 ## Tests
 
 ```bash
-pytest
+.venv/bin/python -m pytest
 ```
 
-Tests cover the profit/fee math and opportunity filtering only — they don't
-hit any exchange API.
+Les tests couvrent uniquement les calculs de profit/frais et le filtrage
+des opportunités — aucun appel réel aux exchanges.
 
-## How it works
+## Fonctionnement
 
-1. `bot/scanner.py` polls the last price for each configured pair on every
-   exchange and computes the net profit (after taker fees) of buying on one
-   exchange and selling on another.
-2. Opportunities above `min_profit_threshold` are passed to
+1. `bot/scanner.py` interroge le dernier prix de chaque paire configurée
+   sur chaque exchange et calcule le profit net (après frais taker) entre
+   un achat sur l'un et une vente sur l'autre.
+2. Les opportunités au-dessus de `min_profit_threshold` sont transmises à
    `bot/executor.py`.
-3. In `dry_run` mode the executor only logs what it *would* do. In live
-   mode it: checks available balances, re-checks prices for slippage versus
-   `max_slippage`, then places a market buy on the cheap exchange and a
-   market sell on the expensive one.
+3. En mode `dry_run`, l'exécuteur se contente de logger ce qu'il *ferait*.
+   En mode réel : il vérifie les soldes disponibles, recontrôle les prix
+   pour détecter un dérapage (`max_slippage`), puis place un ordre d'achat
+   au marché sur l'exchange le moins cher et un ordre de vente au marché
+   sur l'exchange le plus cher.
 
-## Limitations / not handled
+## Limites connues
 
-- No order book depth analysis — uses last trade price, so real fills may
-  differ from the scanned price (mitigated by the slippage check, not
-  eliminated).
-- No automatic rebalancing of funds between exchanges.
-- No persistence/state across restarts (no open-position tracking beyond
-  what each exchange reports).
+- Pas d'analyse de la profondeur du carnet d'ordres — utilise le dernier
+  prix échangé, donc l'exécution réelle peut différer du prix scanné
+  (atténué par le contrôle de dérapage, pas éliminé).
+- Pas de rééquilibrage automatique des fonds entre exchanges.
+- Pas de persistance entre redémarrages (pas de suivi de position au-delà
+  de ce que chaque exchange rapporte).
