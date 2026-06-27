@@ -1,0 +1,32 @@
+# Configuration generee par setup_wizard.py.
+# Tu peux la modifier a la main, ou relancer setup_wizard.py pour repartir de zero.
+#
+# dry_run: true  -> le bot observe et affiche les opportunites, sans jamais trader.
+# dry_run: false -> le bot passe de vrais ordres avec l'argent de tes comptes.
+dry_run: true
+
+scan_interval_seconds: 10
+
+exchanges:
+  - binance
+  - kraken
+
+pairs:
+  - BTC/USDT
+  - ETH/USDT
+
+# Profit minimum (apres frais) pour agir sur une opportunite. 0.005 = 0.5%.
+min_profit_threshold: 0.005
+
+# Montant maximum (en monnaie de cotation, ex: USDT) engage par trade.
+max_trade_size_quote: 100
+
+# Fraction maximum du solde disponible utilisee par trade, en plus du plafond ci-dessus.
+max_balance_fraction_per_trade: 0.5
+
+# Ecart de prix tolere entre le scan et l'execution avant d'annuler un trade.
+max_slippage: 0.002
+
+logging:
+  level: INFO
+  file: logs/arbitrage.log

@@ -1,0 +1,109 @@
+# Bot d'arbitrage crypto
+
+Compare les prix entre plusieurs exchanges crypto et peut trader
+automatiquement les écarts de prix rentables.
+
+## Démarrage rapide (débutants)
+
+1. **Installer** (crée l'environnement et installe tout automatiquement) :
+
+   ```bash
+   ./install.sh
+   ```
+
+   Un assistant va te poser quelques questions simples (exchanges, paires à
+   surveiller, etc.). Si tu n'as pas encore de clés API, choisis le **mode
+   démonstration** : le bot fonctionnera sans rien risquer, juste pour te
+   montrer les opportunités qu'il détecte.
+
+2. **Lancer** le bot :
+
+   ```bash
+   ./start.sh
+   ```
+
+3. Pour changer la configuration plus tard (ajouter des clés API, passer en
+   mode réel, changer les paires...), relance simplement `./install.sh`.
+
+Sur Windows, utilise Git Bash ou WSL pour exécuter ces commandes `.sh`.
+
+## ⚠️ À lire avant de passer en argent réel
+
+- En mode réel (`dry_run: false`), le bot place de **vrais ordres avec de
+  l'argent réel**. Un ordre peut s'exécuter à un prix différent de celui
+  prévu, l'API d'un exchange peut échouer en cours de route, et la jambe
+  d'achat peut être exécutée alors que la jambe de vente échoue, te
+  laissant avec une position ouverte non couverte.
+- L'arbitrage inter-exchange suppose que tu as **déjà des fonds sur chaque
+  exchange** (la monnaie de cotation côté achat, la monnaie de base côté
+  vente) — il n'y a pas le temps de transférer des cryptos entre exchanges
+  avant que l'écart de prix ne disparaisse.
+- Commence toujours par le mode démonstration et observe les logs plusieurs
+  jours avant d'envisager le mode réel.
+- Utilise des clés API avec uniquement les droits de **trading**, jamais de
+  droit de retrait.
+- Tu es seul responsable des fonds que tu engages avec ce bot.
+
+## Configuration manuelle (avancé)
+
+Si tu préfères éditer les fichiers toi-même plutôt que d'utiliser
+`./install.sh` :
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # puis renseigne tes vraies cles API
+```
+
+Dans `config.yaml` :
+
+- `exchanges` : identifiants ccxt des exchanges à comparer (doivent
+  correspondre aux préfixes des clés dans `.env`)
+- `pairs` : paires à surveiller, format ccxt (ex. `BTC/USDT`)
+- `min_profit_threshold` : profit net minimum (après frais des deux
+  exchanges) pour agir, en fraction (`0.005` = 0.5 %)
+- `max_trade_size_quote` : plafond de taille de trade en monnaie de
+  cotation
+- `dry_run` : garder `true` tant que tu n'as pas validé le comportement
+  dans les logs
+
+## Lancer le bot manuellement
+
+```bash
+.venv/bin/python main.py
+```
+
+Les logs s'affichent dans le terminal et sont écrits dans le fichier
+configuré sous `logging.file` (par défaut `logs/arbitrage.log`).
+
+## Tests
+
+```bash
+.venv/bin/python -m pytest
+```
+
+Les tests couvrent uniquement les calculs de profit/frais et le filtrage
+des opportunités — aucun appel réel aux exchanges.
+
+## Fonctionnement
+
+1. `bot/scanner.py` interroge le dernier prix de chaque paire configurée
+   sur chaque exchange et calcule le profit net (après frais taker) entre
+   un achat sur l'un et une vente sur l'autre.
+2. Les opportunités au-dessus de `min_profit_threshold` sont transmises à
+   `bot/executor.py`.
+3. En mode `dry_run`, l'exécuteur se contente de logger ce qu'il *ferait*.
+   En mode réel : il vérifie les soldes disponibles, recontrôle les prix
+   pour détecter un dérapage (`max_slippage`), puis place un ordre d'achat
+   au marché sur l'exchange le moins cher et un ordre de vente au marché
+   sur l'exchange le plus cher.
+
+## Limites connues
+
+- Pas d'analyse de la profondeur du carnet d'ordres — utilise le dernier
+  prix échangé, donc l'exécution réelle peut différer du prix scanné
+  (atténué par le contrôle de dérapage, pas éliminé).
+- Pas de rééquilibrage automatique des fonds entre exchanges.
+- Pas de persistance entre redémarrages (pas de suivi de position au-delà
+  de ce que chaque exchange rapporte).
