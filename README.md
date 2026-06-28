@@ -73,8 +73,18 @@ Dans `config.yaml` :
 
 ## Problèmes de connexion
 
+**Diagnostic en un clic** : lance `./diagnose.sh` (Windows : via Git Bash).
+L'outil teste ta connexion internet puis chaque exchange un par un, et
+t'explique en clair pourquoi chacun est joignable ou non (blocage
+géographique, connexion trop lente, pare-feu, clés API...).
+
 Si le bot affiche « impossible de se connecter aux exchanges » :
 
+- Certains exchanges (dont Binance) **bloquent l'accès depuis certains
+  pays**. Si `diagnose.sh` indique un blocage géographique, ce n'est pas un
+  bug : remplace l'exchange concerné par un autre (Kraken, KuCoin, OKX
+  fonctionnent souvent là où Binance est bloqué) en relançant
+  `./install.sh`, ou utilise un VPN vers un pays autorisé.
 - Il réessaie automatiquement chaque exchange plusieurs fois, et ignore
   ceux qui restent injoignables au lieu de tout bloquer (il lui faut au
   moins 2 exchanges joignables pour comparer les prix).

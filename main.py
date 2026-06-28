@@ -8,6 +8,7 @@ import signal
 import aiohttp
 
 from bot.config import load_config
+from bot.diagnostics import classify_error
 from bot.exchange_client import ExchangeClient
 from bot.executor import TradeAborted, TradeExecutor
 from bot.logger import setup_logging
@@ -55,12 +56,12 @@ async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, del
 
         if attempt == attempts:
             for exchange_id, error in failures.items():
+                _, reason = classify_error(error)
                 logger.warning(
-                    "%s reste inaccessible apres %d tentatives (%s: %s) — exchange ignore pour cette session",
+                    "%s injoignable apres %d tentatives — %s (exchange ignore pour cette session)",
                     exchange_id,
                     attempts,
-                    type(error).__name__,
-                    error,
+                    reason,
                 )
                 await scanner.clients[exchange_id].close()
                 del scanner.clients[exchange_id]
