@@ -37,7 +37,8 @@ async def check_internet_connectivity(per_host_timeout: float = 6) -> bool:
     """
     timeout = aiohttp.ClientTimeout(total=per_host_timeout)
     try:
-        async with aiohttp.ClientSession() as session:
+        # trust_env=True so a system/env proxy is used, matching the browser.
+        async with aiohttp.ClientSession(trust_env=True) as session:
             for url in CONNECTIVITY_CHECK_URLS:
                 try:
                     async with session.get(url, timeout=timeout):

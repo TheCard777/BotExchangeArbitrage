@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import socket
 import time
 from urllib.parse import urlparse
@@ -69,7 +70,7 @@ async def check_internet() -> dict[str, bool]:
     'no internet' verdict. Returns {nom: joignable?} for each host."""
     reachable: dict[str, bool] = {}
     timeout = aiohttp.ClientTimeout(total=6)
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(trust_env=True) as session:
         for name, url in INTERNET_CHECK_URLS.items():
             try:
                 async with session.get(url, timeout=timeout):
@@ -77,6 +78,15 @@ async def check_internet() -> dict[str, bool]:
             except Exception:
                 reachable[name] = False
     return reachable
+
+
+def detect_proxy() -> str | None:
+    """Return the configured system/env proxy, if any."""
+    for var in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"):
+        value = os.environ.get(var)
+        if value:
+            return f"{var}={value}"
+    return None
 
 
 async def _dns_resolves(host: str) -> bool:
@@ -122,7 +132,7 @@ async def test_exchange(exchange_id: str) -> dict:
 
     try:
         async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=PROBE_TIMEOUT)
+            timeout=aiohttp.ClientTimeout(total=PROBE_TIMEOUT), trust_env=True
         ) as session:
             async with session.get(url) as response:
                 status = response.status
@@ -168,7 +178,10 @@ async def run() -> None:
     print("=" * 64)
     print()
 
+    proxy = detect_proxy()
     print("1) Test de la connexion internet de base...")
+    if proxy:
+        print(f"   (proxy detecte : {proxy})")
     internet = await check_internet()
     for name, ok in internet.items():
         print(f"   {'[OK ]' if ok else '[KO ]'} {name}")
@@ -176,9 +189,7 @@ async def run() -> None:
     if has_internet:
         print("   -> Cette machine atteint au moins un site internet general.")
     else:
-        print("   -> Aucun site internet general n'est joignable depuis cette machine.")
-        print("      (Si Telegram/WhatsApp marche mais pas ceci, ton forfait data ne")
-        print("       autorise probablement que ces apps, pas la navigation generale.)")
+        print("   -> Python n'atteint AUCUN site internet depuis cette machine.")
 
     exchanges = load_configured_exchanges()
     print()
@@ -214,11 +225,22 @@ async def run() -> None:
         geo = [r for r in failed if r.get("category") == GEOBLOCK]
         if not has_internet:
             print()
-            print("CAUSE PRINCIPALE : cette machine n'atteint AUCUN site internet general,")
-            print("alors que des apps comme Telegram fonctionnent peut-etre. Ce n'est pas un")
-            print("bug du bot : ta connexion ne permet pas la navigation internet complete.")
-            print("-> Utilise une vraie connexion (Wi-Fi avec forfait complet, box, fibre) ou")
-            print("   un forfait data sans restriction, puis relance ce diagnostic.")
+            print("CAUSE PRINCIPALE : Python (le bot) n'atteint AUCUN site internet.")
+            print("Si ton NAVIGATEUR (ex: Google) fonctionne mais pas ce test, c'est que")
+            print("seul le navigateur sort sur internet, pas Python. Causes habituelles :")
+            print("  1. DNS du systeme casse, contourne par le navigateur (DNS-over-HTTPS).")
+            print("     -> Change le DNS de ta connexion Windows en 8.8.8.8 et 1.1.1.1.")
+            print("  2. Tu utilises un navigateur a VPN integre (Opera) ou une app")
+            print("     proxy/tunnel pour avoir internet : le bot ne passe pas par elle.")
+            print("     -> Installe un VPN SYSTEME (pour toute la machine), pas seulement")
+            print("        dans le navigateur, puis relance.")
+            print("  3. Le pare-feu Windows ou l'antivirus bloque python.exe.")
+            print("     -> Autorise python.exe (dossier .venv) dans le pare-feu/antivirus.")
+            if proxy:
+                print(f"  (Un proxy est configure : {proxy} — le bot l'utilise desormais.)")
+            else:
+                print("  (Aucun proxy systeme detecte : si tu en utilises un dans le")
+                print("   navigateur uniquement, definis-le aussi pour Windows.)")
         elif geo:
             print()
             print(f"Exchange(s) bloque(s) geographiquement : {', '.join(r['id'] for r in geo)}.")

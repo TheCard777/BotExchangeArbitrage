@@ -21,6 +21,11 @@ class ExchangeClient:
                 # "can't connect" failures (the request is in flight,
                 # just slow — not actually blocked).
                 "timeout": int(config.request_timeout_seconds * 1000),
+                # Honour the system/env proxy (HTTP_PROXY/HTTPS_PROXY) like a
+                # browser does. On networks where internet is only reachable
+                # through a proxy/tunnel, this is what lets the bot connect
+                # at all instead of failing with DNS/connection errors.
+                "aiohttp_trust_env": True,
             }
         )
 
