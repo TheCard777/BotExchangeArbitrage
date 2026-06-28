@@ -9,6 +9,7 @@ import aiohttp
 
 from bot.config import load_config
 from bot.diagnostics import classify_error
+from bot.dns_fallback import install as install_dns_fallback
 from bot.exchange_client import ExchangeClient
 from bot.executor import TradeAborted, TradeExecutor
 from bot.logger import setup_logging
@@ -98,6 +99,10 @@ async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, del
 
 
 async def run() -> None:
+    # Make DNS resilient (system-first, DoH fallback) before any network call,
+    # so a broken system DNS can't stop the bot from reaching the exchanges.
+    install_dns_fallback()
+
     config = load_config()
     setup_logging(config.logging)
 

@@ -25,6 +25,7 @@ from bot.diagnostics import (
     classify_error,
     classify_http_status,
 )
+from bot.dns_fallback import install as install_dns_fallback
 
 # Keep ccxt/aiohttp's cosmetic "unclosed session" chatter out of the report —
 # it's harmless noise that would only confuse a non-technical user.
@@ -173,6 +174,10 @@ async def test_exchange(exchange_id: str) -> dict:
 
 
 async def run() -> None:
+    # Same DNS resilience as the bot, so the diagnostic reflects how the bot
+    # will actually behave (and works even if the system DNS is broken).
+    install_dns_fallback()
+
     print("=" * 64)
     print("  Diagnostic de connexion - Bot d'arbitrage crypto")
     print("=" * 64)

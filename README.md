@@ -78,6 +78,12 @@ L'outil teste ta connexion internet puis chaque exchange un par un, et
 t'explique en clair pourquoi chacun est joignable ou non (blocage
 géographique, connexion trop lente, pare-feu, clés API...).
 
+Le bot se débrouille déjà tout seul dans la plupart des cas : il réessaie,
+utilise le proxy système s'il y en a un, et si le **DNS** de la machine est
+cassé (cas fréquent où le navigateur marche mais pas les programmes), il
+bascule automatiquement sur un DNS public (1.1.1.1 / 8.8.8.8) — sans aucune
+manipulation.
+
 Si le bot affiche « impossible de se connecter aux exchanges » :
 
 - Certains exchanges (dont Binance) **bloquent l'accès depuis certains
