@@ -8,6 +8,7 @@ from bot.diagnostics import (
     TIMEOUT,
     UNKNOWN,
     classify_error,
+    classify_http_status,
 )
 
 
@@ -81,6 +82,38 @@ def test_subclass_of_networkerror_maps_to_network():
     network_base = _make("NetworkError")
     exc = _make("SomeWeirdNetIssue", base=network_base)("binance GET ...")
     assert cat(exc) == NETWORK
+
+
+# --- classify_http_status (literal status from the raw probe) --------------
+
+
+def test_status_451_is_geoblock():
+    category, message = classify_http_status(451)
+    assert category == GEOBLOCK
+    assert "451" in message
+
+
+def test_status_403_is_blocked():
+    assert classify_http_status(403)[0] == BLOCKED
+
+
+def test_status_429_is_blocked():
+    assert classify_http_status(429)[0] == BLOCKED
+
+
+def test_status_5xx_is_maintenance():
+    assert classify_http_status(503)[0] == MAINTENANCE
+
+
+def test_status_200_is_reachable():
+    category, message = classify_http_status(200)
+    assert category is None
+    assert "joignable" in message
+
+
+def test_status_other_4xx_is_still_reachable():
+    # A 400/401/404 still proves the API answered — the host is reachable.
+    assert classify_http_status(404)[0] is None
 
 
 def test_every_category_returns_nonempty_french_message():

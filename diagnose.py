@@ -11,19 +11,37 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 import time
+from urllib.parse import urlparse
 
 import aiohttp
-import ccxt.async_support as ccxt
 
-from bot.diagnostics import GEOBLOCK, classify_error
+from bot.diagnostics import (
+    GEOBLOCK,
+    NETWORK,
+    TIMEOUT,
+    classify_error,
+    classify_http_status,
+)
 
 # Keep ccxt/aiohttp's cosmetic "unclosed session" chatter out of the report —
 # it's harmless noise that would only confuse a non-technical user.
 logging.getLogger("ccxt.base.exchange").setLevel(logging.CRITICAL)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
-DEFAULT_EXCHANGES = ["binance", "kraken", "coinbase", "bybit", "kucoin", "okx"]
+# Lightweight, stable public "ping/time" endpoints for each supported
+# exchange — used to read the *literal* HTTP status the exchange returns
+# (200 = reachable, 451 = geo-block, 403 = firewall, etc.).
+PING_ENDPOINTS = {
+    "binance": "https://api.binance.com/api/v3/ping",
+    "kraken": "https://api.kraken.com/0/public/Time",
+    "coinbase": "https://api.coinbase.com/v2/time",
+    "bybit": "https://api.bybit.com/v5/market/time",
+    "kucoin": "https://api.kucoin.com/api/v1/timestamp",
+    "okx": "https://www.okx.com/api/v5/public/time",
+}
+DEFAULT_EXCHANGES = list(PING_ENDPOINTS)
 # Exchanges qui marchent souvent la ou Binance est bloque.
 GEOBLOCK_ALTERNATIVES = ["kraken", "kucoin", "okx", "bybit"]
 PROBE_TIMEOUT = 20
@@ -48,17 +66,78 @@ async def check_internet() -> bool:
         return False
 
 
-async def test_exchange(exchange_id: str) -> dict:
-    """Tente de charger les marches d'un exchange et classe le resultat."""
-    exchange = None
-    started = time.monotonic()
+async def _dns_resolves(host: str) -> bool:
+    loop = asyncio.get_running_loop()
     try:
-        exchange_class = getattr(ccxt, exchange_id)
-        exchange = exchange_class({"enableRateLimit": True, "timeout": PROBE_TIMEOUT * 1000})
-        await exchange.load_markets()
+        await loop.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        return True
+    except Exception:
+        return False
+
+
+async def test_exchange(exchange_id: str) -> dict:
+    """Probe an exchange in layers (DNS, then a raw HTTP call) and read the
+    literal HTTP status. This pins down *why* it fails far more precisely than
+    a wrapped library error: 451 = geo-block, 403 = firewall, timeout = slow
+    link, DNS failure = network/DNS, connection refused = blocked locally."""
+    url = PING_ENDPOINTS.get(exchange_id)
+    if url is None:
+        return {
+            "id": exchange_id,
+            "ok": False,
+            "elapsed": 0.0,
+            "category": NETWORK,
+            "message": "Exchange non reconnu par le diagnostic.",
+            "detail": "inconnu",
+        }
+
+    host = urlparse(url).hostname or ""
+    started = time.monotonic()
+
+    if not await _dns_resolves(host):
+        return {
+            "id": exchange_id,
+            "ok": False,
+            "elapsed": time.monotonic() - started,
+            "category": NETWORK,
+            "message": (
+                f"Le nom {host} ne se resout pas (probleme DNS/reseau). Verifie ta connexion, "
+                "coupe un eventuel VPN/proxy, ou essaie un autre reseau."
+            ),
+            "detail": f"DNS KO ({host})",
+        }
+
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=PROBE_TIMEOUT)
+        ) as session:
+            async with session.get(url) as response:
+                status = response.status
+                await response.read()
         elapsed = time.monotonic() - started
-        return {"id": exchange_id, "ok": True, "elapsed": elapsed}
-    except Exception as e:  # noqa: BLE001 — on veut classer tout type d'echec
+        category, message = classify_http_status(status)
+        return {
+            "id": exchange_id,
+            "ok": category is None,
+            "elapsed": elapsed,
+            "category": category,
+            "message": message,
+            "detail": f"DNS OK, HTTP {status}",
+        }
+    except asyncio.TimeoutError:
+        return {
+            "id": exchange_id,
+            "ok": False,
+            "elapsed": time.monotonic() - started,
+            "category": TIMEOUT,
+            "message": (
+                f"Delai depasse (>{PROBE_TIMEOUT}s) : le serveur est joignable mais ta connexion "
+                "est trop lente/instable. Augmente request_timeout_seconds dans config.yaml ou "
+                "change de reseau."
+            ),
+            "detail": f"DNS OK, timeout >{PROBE_TIMEOUT}s",
+        }
+    except Exception as e:  # noqa: BLE001 — connexion refusee, TLS, reset...
         category, message = classify_error(e)
         return {
             "id": exchange_id,
@@ -66,13 +145,8 @@ async def test_exchange(exchange_id: str) -> dict:
             "elapsed": time.monotonic() - started,
             "category": category,
             "message": message,
+            "detail": f"DNS OK, {type(e).__name__}",
         }
-    finally:
-        if exchange is not None:
-            try:
-                await exchange.close(clean_instance_data=True)
-            except Exception:
-                pass
 
 
 async def run() -> None:
@@ -102,10 +176,11 @@ async def run() -> None:
     failed = [r for r in results if not r["ok"]]
 
     for r in results:
+        detail = r.get("detail", "")
         if r["ok"]:
-            print(f"   [OK ] {r['id']:<10} joignable ({r['elapsed']:.1f}s)")
+            print(f"   [OK ] {r['id']:<10} joignable ({r['elapsed']:.1f}s) [{detail}]")
         else:
-            print(f"   [KO ] {r['id']:<10} {r['message']}")
+            print(f"   [KO ] {r['id']:<10} [{detail}] {r['message']}")
 
     print()
     print("=" * 64)

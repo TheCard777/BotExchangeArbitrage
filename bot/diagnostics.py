@@ -42,6 +42,37 @@ _MAINTENANCE_HINTS = ("maintenance", "system maintenance")
 _AUTH_HINTS = ("invalid api", "authentication", "api-key", "apikey", "signature", "permission denied")
 
 
+def classify_http_status(status: int) -> tuple[str | None, str]:
+    """Classify a *literal* HTTP status from a raw probe to an exchange API.
+
+    Returns (category, message); category is None when the API answered
+    normally, which means it is reachable and the problem lies elsewhere.
+    """
+    if status == 451:
+        return GEOBLOCK, (
+            f"HTTP {status} : l'exchange refuse explicitement les connexions depuis ce "
+            "pays/region (restriction legale). C'est une restriction de l'exchange, pas un "
+            "bug du bot — il faut un VPN vers un pays autorise, ou un autre exchange."
+        )
+    if status == 403:
+        return BLOCKED, (
+            f"HTTP {status} : acces refuse. Ton operateur/pare-feu bloque cette adresse, ou "
+            "restriction geographique. Essaie un autre reseau (Wi-Fi/4G) ou un VPN."
+        )
+    if status == 429:
+        return BLOCKED, (
+            f"HTTP {status} : trop de requetes / protection anti-abus (souvent lie a l'IP). "
+            "Reessaie plus tard ou change de reseau."
+        )
+    if status >= 500:
+        return MAINTENANCE, (
+            f"HTTP {status} : l'exchange a un probleme de son cote (serveur indisponible ou "
+            "maintenance). Reessaie plus tard."
+        )
+    # 2xx, or a 4xx like 400/401/404 — the server answered, so it IS reachable.
+    return None, f"HTTP {status} : l'API repond, l'exchange est joignable depuis ce reseau."
+
+
 def classify_error(exc: BaseException) -> tuple[str, str]:
     """Return (category, human-readable French message) for a connection error."""
     text = f"{type(exc).__name__}: {exc}".lower()
