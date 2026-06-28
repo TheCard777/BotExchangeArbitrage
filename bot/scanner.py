@@ -88,13 +88,29 @@ class ArbitrageScanner:
             for pair in self.pairs:
                 try:
                     ticker = await client.fetch_ticker(pair)
-                    results[pair] = ticker["last"]
+                    last = (ticker or {}).get("last")
+                    # Only keep usable, strictly-positive prices: some
+                    # exchanges return None/0 for an illiquid or unlisted
+                    # pair, which would otherwise poison the profit math.
+                    price = float(last)
+                    if price > 0:
+                        results[pair] = price
+                except (TypeError, ValueError):
+                    continue
                 except Exception:
                     continue
             return exchange_id, results
 
-        results = await asyncio.gather(*(fetch_for_exchange(eid, c) for eid, c in self.clients.items()))
-        return dict(results)
+        results = await asyncio.gather(
+            *(fetch_for_exchange(eid, c) for eid, c in self.clients.items()),
+            return_exceptions=True,
+        )
+        return {
+            exchange_id: prices
+            for item in results
+            if not isinstance(item, Exception)
+            for exchange_id, prices in [item]
+        }
 
     def _fee_table(self) -> dict[str, dict[str, float]]:
         return {

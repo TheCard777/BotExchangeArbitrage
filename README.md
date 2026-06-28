@@ -65,8 +65,26 @@ Dans `config.yaml` :
   exchanges) pour agir, en fraction (`0.005` = 0.5 %)
 - `max_trade_size_quote` : plafond de taille de trade en monnaie de
   cotation
+- `request_timeout_seconds` : temps d'attente max (en secondes) avant
+  d'abandonner une requête à un exchange. Augmente-le si ta connexion est
+  lente ou instable (par défaut 30)
 - `dry_run` : garder `true` tant que tu n'as pas validé le comportement
   dans les logs
+
+## Problèmes de connexion
+
+Si le bot affiche « impossible de se connecter aux exchanges » :
+
+- Il réessaie automatiquement chaque exchange plusieurs fois, et ignore
+  ceux qui restent injoignables au lieu de tout bloquer (il lui faut au
+  moins 2 exchanges joignables pour comparer les prix).
+- Au démarrage, il teste lui-même ta connexion internet et te dit s'il
+  s'agit d'une absence totale de connexion, ou d'un réseau qui fonctionne
+  mais bloque l'accès aux sites crypto (opérateur/pare-feu).
+- Sur une connexion lente, augmente `request_timeout_seconds` dans
+  `config.yaml` (par exemple `60`).
+- Si ton opérateur ou ton réseau bloque les exchanges crypto, essaie un
+  autre réseau (Wi-Fi au lieu de 4G, ou inversement) ou un VPN.
 
 ## Lancer le bot manuellement
 
@@ -83,8 +101,12 @@ configuré sous `logging.file` (par défaut `logs/arbitrage.log`).
 .venv/bin/python -m pytest
 ```
 
-Les tests couvrent uniquement les calculs de profit/frais et le filtrage
-des opportunités — aucun appel réel aux exchanges.
+Les tests couvrent les calculs de profit/frais, le filtrage des
+opportunités, le chargement et la validation de la configuration, la
+récupération des prix, les garde-fous de l'exécuteur (soldes, dérapage,
+échec d'une jambe), la résilience de connexion (réessais et abandon d'un
+exchange injoignable) et le diagnostic réseau — le tout sans aucun appel
+réel aux exchanges.
 
 ## Fonctionnement
 

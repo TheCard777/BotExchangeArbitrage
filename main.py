@@ -136,7 +136,12 @@ async def run() -> None:
             except asyncio.TimeoutError:
                 pass
     finally:
-        await asyncio.gather(*(client.close() for client in clients.values()))
+        # Close every client even if one close() fails — return_exceptions
+        # keeps a single bad shutdown from leaking the other sessions.
+        await asyncio.gather(
+            *(client.close() for client in clients.values()),
+            return_exceptions=True,
+        )
 
 
 if __name__ == "__main__":
