@@ -36,4 +36,7 @@ class ExchangeClient:
         return await self.exchange.create_order(symbol, "market", side, amount)
 
     async def close(self):
-        await self.exchange.close()
+        # ccxt only releases the underlying aiohttp session/connector when
+        # clean_instance_data=True; without it, close() is a no-op for REST
+        # and leaves "Unclosed client session" warnings on exit.
+        await self.exchange.close(clean_instance_data=True)
