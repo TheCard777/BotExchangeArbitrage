@@ -16,6 +16,11 @@ class ExchangeClient:
                 "apiKey": creds.get("apiKey", ""),
                 "secret": creds.get("secret", ""),
                 "enableRateLimit": True,
+                # ccxt's 10s default is too tight on slow/high-latency
+                # connections, where it's the main cause of false
+                # "can't connect" failures (the request is in flight,
+                # just slow — not actually blocked).
+                "timeout": int(config.request_timeout_seconds * 1000),
             }
         )
 

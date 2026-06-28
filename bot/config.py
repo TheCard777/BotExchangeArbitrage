@@ -28,6 +28,7 @@ class Config:
     max_balance_fraction_per_trade: float
     max_slippage: float
     logging: LoggingConfig
+    request_timeout_seconds: float = 30.0
     api_keys: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def credentials_for(self, exchange_id: str) -> dict[str, str]:
@@ -64,5 +65,6 @@ def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
         max_balance_fraction_per_trade=raw.get("max_balance_fraction_per_trade", 1.0),
         max_slippage=raw.get("max_slippage", 0.002),
         logging=LoggingConfig(**raw.get("logging", {})),
+        request_timeout_seconds=raw.get("request_timeout_seconds", 30.0),
         api_keys=api_keys,
     )
