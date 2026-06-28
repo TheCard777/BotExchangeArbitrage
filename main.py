@@ -17,19 +17,34 @@ from bot.scanner import ArbitrageScanner
 logger = logging.getLogger("arbitrage.main")
 
 
-async def check_internet_connectivity(timeout_seconds: float = 8) -> bool:
+# A few independent, highly-reliable endpoints. We try several so one blocked
+# or slow host (some networks block specific domains) can't produce a false
+# "no internet" verdict — reaching ANY of them proves the path works.
+CONNECTIVITY_CHECK_URLS = (
+    "https://www.cloudflare.com/cdn-cgi/trace",
+    "https://www.google.com/generate_204",
+    "https://www.gstatic.com/generate_204",
+)
+
+
+async def check_internet_connectivity(per_host_timeout: float = 6) -> bool:
     """Quick, exchange-independent reachability check used to tell apart
     'no internet at all' from 'internet works but exchanges don't' when
-    every configured exchange fails to connect.
+    every configured exchange fails to connect. Returns True if ANY of a
+    handful of reliable hosts answers — receiving any HTTP response (even an
+    error status) proves the network path works; only exceptions on every
+    host (timeout, DNS failure, connection refused) mean no connectivity.
     """
+    timeout = aiohttp.ClientTimeout(total=per_host_timeout)
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout_seconds)) as session:
-            # Receiving any HTTP response at all (even an error status like
-            # 403) proves the network path to the internet works — only an
-            # exception (timeout, DNS failure, connection refused) means
-            # there's really no connectivity.
-            async with session.get("https://www.cloudflare.com/cdn-cgi/trace"):
-                return True
+        async with aiohttp.ClientSession() as session:
+            for url in CONNECTIVITY_CHECK_URLS:
+                try:
+                    async with session.get(url, timeout=timeout):
+                        return True
+                except Exception:
+                    continue
+            return False
     except Exception:
         return False
 

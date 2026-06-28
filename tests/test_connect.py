@@ -89,8 +89,12 @@ class _FakeResponse:
 
 
 class _FakeSession:
-    def __init__(self, raise_exc=None):
+    def __init__(self, outcomes=None, raise_exc=None):
+        # outcomes: list of per-call exceptions (None = success). raise_exc:
+        # same exception for every call.
+        self._outcomes = list(outcomes) if outcomes is not None else None
         self._raise = raise_exc
+        self.calls = 0
 
     async def __aenter__(self):
         return self
@@ -98,8 +102,12 @@ class _FakeSession:
     async def __aexit__(self, *args):
         return False
 
-    def get(self, url):
-        return _FakeResponse(self._raise)
+    def get(self, url, **kwargs):
+        exc = self._raise
+        if self._outcomes is not None:
+            exc = self._outcomes[self.calls] if self.calls < len(self._outcomes) else OSError("down")
+        self.calls += 1
+        return _FakeResponse(exc)
 
 
 async def test_connectivity_true_when_any_response_received(monkeypatch):
@@ -107,10 +115,18 @@ async def test_connectivity_true_when_any_response_received(monkeypatch):
     assert await main.check_internet_connectivity() is True
 
 
-async def test_connectivity_false_on_network_error(monkeypatch):
+async def test_connectivity_false_only_when_every_host_fails(monkeypatch):
     monkeypatch.setattr(
         main.aiohttp,
         "ClientSession",
         lambda **kw: _FakeSession(raise_exc=OSError("network down")),
     )
     assert await main.check_internet_connectivity() is False
+
+
+async def test_connectivity_true_if_first_host_fails_but_a_later_one_works(monkeypatch):
+    # First host blocked/slow, second succeeds — must still report connectivity.
+    session = _FakeSession(outcomes=[OSError("blocked"), None, None])
+    monkeypatch.setattr(main.aiohttp, "ClientSession", lambda **kw: session)
+    assert await main.check_internet_connectivity() is True
+    assert session.calls == 2  # stopped at the first success

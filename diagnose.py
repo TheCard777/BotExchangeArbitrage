@@ -57,13 +57,26 @@ def load_configured_exchanges() -> list[str]:
         return DEFAULT_EXCHANGES
 
 
-async def check_internet() -> bool:
-    try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as session:
-            async with session.get("https://www.cloudflare.com/cdn-cgi/trace"):
-                return True
-    except Exception:
-        return False
+INTERNET_CHECK_URLS = {
+    "Cloudflare": "https://www.cloudflare.com/cdn-cgi/trace",
+    "Google": "https://www.google.com/generate_204",
+    "Gstatic": "https://www.gstatic.com/generate_204",
+}
+
+
+async def check_internet() -> dict[str, bool]:
+    """Test several reliable hosts so one blocked/slow site can't give a false
+    'no internet' verdict. Returns {nom: joignable?} for each host."""
+    reachable: dict[str, bool] = {}
+    timeout = aiohttp.ClientTimeout(total=6)
+    async with aiohttp.ClientSession() as session:
+        for name, url in INTERNET_CHECK_URLS.items():
+            try:
+                async with session.get(url, timeout=timeout):
+                    reachable[name] = True
+            except Exception:
+                reachable[name] = False
+    return reachable
 
 
 async def _dns_resolves(host: str) -> bool:
@@ -156,14 +169,16 @@ async def run() -> None:
     print()
 
     print("1) Test de la connexion internet de base...")
-    if await check_internet():
-        print("   OK : cette machine a bien acces a internet.")
+    internet = await check_internet()
+    for name, ok in internet.items():
+        print(f"   {'[OK ]' if ok else '[KO ]'} {name}")
+    has_internet = any(internet.values())
+    if has_internet:
+        print("   -> Cette machine atteint au moins un site internet general.")
     else:
-        print("   ECHEC : aucune connexion internet detectee.")
-        print("   -> Verifie ton Wi-Fi/4G, coupe un eventuel VPN, puis relance.")
-        print()
-        print("Inutile de tester les exchanges sans internet. Diagnostic termine.")
-        return
+        print("   -> Aucun site internet general n'est joignable depuis cette machine.")
+        print("      (Si Telegram/WhatsApp marche mais pas ceci, ton forfait data ne")
+        print("       autorise probablement que ces apps, pas la navigation generale.)")
 
     exchanges = load_configured_exchanges()
     print()
@@ -197,7 +212,14 @@ async def run() -> None:
     else:
         print("Moins de 2 exchanges joignables : le bot ne peut pas comparer les prix.")
         geo = [r for r in failed if r.get("category") == GEOBLOCK]
-        if geo:
+        if not has_internet:
+            print()
+            print("CAUSE PRINCIPALE : cette machine n'atteint AUCUN site internet general,")
+            print("alors que des apps comme Telegram fonctionnent peut-etre. Ce n'est pas un")
+            print("bug du bot : ta connexion ne permet pas la navigation internet complete.")
+            print("-> Utilise une vraie connexion (Wi-Fi avec forfait complet, box, fibre) ou")
+            print("   un forfait data sans restriction, puis relance ce diagnostic.")
+        elif geo:
             print()
             print(f"Exchange(s) bloque(s) geographiquement : {', '.join(r['id'] for r in geo)}.")
             print("C'est une restriction de l'exchange, pas un bug du bot.")
@@ -206,6 +228,8 @@ async def run() -> None:
             print(f"-> Remplace-les par d'autres exchanges (ex: {', '.join(suggestion[:3])})")
             print("   en relancant ./install.sh, ou utilise un VPN vers un pays autorise.")
         else:
+            print("Internet general fonctionne, mais pas les exchanges : ton operateur/pare-feu")
+            print("bloque specifiquement ces sites, ou la connexion est trop lente/instable.")
             print("-> Essaie un autre reseau (Wi-Fi au lieu de 4G, ou inversement) ou un VPN,")
             print("   puis relance ce diagnostic.")
     print("=" * 64)
