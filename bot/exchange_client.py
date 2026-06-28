@@ -16,6 +16,11 @@ class ExchangeClient:
                 "apiKey": creds.get("apiKey", ""),
                 "secret": creds.get("secret", ""),
                 "enableRateLimit": True,
+                # ccxt's 10s default is too tight on slow/high-latency
+                # connections, where it's the main cause of false
+                # "can't connect" failures (the request is in flight,
+                # just slow — not actually blocked).
+                "timeout": int(config.request_timeout_seconds * 1000),
             }
         )
 
@@ -36,4 +41,7 @@ class ExchangeClient:
         return await self.exchange.create_order(symbol, "market", side, amount)
 
     async def close(self):
-        await self.exchange.close()
+        # ccxt only releases the underlying aiohttp session/connector when
+        # clean_instance_data=True; without it, close() is a no-op for REST
+        # and leaves "Unclosed client session" warnings on exit.
+        await self.exchange.close(clean_instance_data=True)

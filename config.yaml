@@ -27,6 +27,10 @@ max_balance_fraction_per_trade: 0.5
 # Ecart de prix tolere entre le scan et l'execution avant d'annuler un trade.
 max_slippage: 0.002
 
+# Temps maximum (en secondes) attendu avant d'abandonner une requete a un exchange.
+# Augmente cette valeur si ta connexion internet est lente ou instable.
+request_timeout_seconds: 30
+
 logging:
   level: INFO
   file: logs/arbitrage.log

@@ -16,3 +16,9 @@ def setup_logging(config: LoggingConfig) -> None:
             logging.FileHandler(log_path),
         ],
     )
+
+    # ccxt/aiohttp warn about "unclosed session" when an exchange never
+    # connected in the first place (e.g. no internet) — purely cosmetic
+    # noise on top of the clear message the bot already logs itself.
+    logging.getLogger("ccxt.base.exchange").setLevel(logging.CRITICAL)
+    logging.getLogger("asyncio").setLevel(logging.CRITICAL)
