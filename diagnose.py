@@ -178,8 +178,10 @@ async def run() -> None:
     # will actually behave (and works even if the system DNS is broken).
     install_dns_fallback()
 
+    from bot import __version__
+
     print("=" * 64)
-    print("  Diagnostic de connexion - Bot d'arbitrage crypto")
+    print(f"  Diagnostic de connexion - Bot d'arbitrage crypto (v{__version__})")
     print("=" * 64)
     print()
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import socket
 
 import aiohttp
 
+from bot import __version__
 from bot.config import load_config
 from bot.diagnostics import classify_error
 from bot.dns_fallback import install as install_dns_fallback
@@ -98,13 +100,32 @@ async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, del
         raise RuntimeError("Pas assez d'exchanges connectes (minimum 2) pour comparer les prix.")
 
 
+def _dns_self_test(host: str = "api.binance.com") -> str:
+    """Resolve a known host via the OS resolver and return a short verdict, so
+    the log shows whether DNS works at runtime (and which resolver is active)."""
+    try:
+        import aiohttp.connector as _connector
+
+        resolver = _connector.DefaultResolver.__name__
+    except Exception:
+        resolver = "?"
+    try:
+        socket.getaddrinfo(host, 443)
+        return f"resolveur={resolver}, test {host}=OK"
+    except Exception as e:
+        return f"resolveur={resolver}, test {host}=ECHEC ({type(e).__name__})"
+
+
 async def run() -> None:
-    # Make DNS resilient (system-first, DoH fallback) before any network call,
-    # so a broken system DNS can't stop the bot from reaching the exchanges.
+    # Make DNS resilient (OS resolver like curl + DoH fallback) before any
+    # network call, so a broken/third-party DNS can't stop the bot.
     install_dns_fallback()
 
     config = load_config()
     setup_logging(config.logging)
+
+    logger.info("Bot d'arbitrage version %s", __version__)
+    logger.info("Diagnostic DNS : %s", _dns_self_test())
 
     if config.dry_run:
         logger.info("Demarrage en mode DEMONSTRATION — aucun ordre reel ne sera passe.")
