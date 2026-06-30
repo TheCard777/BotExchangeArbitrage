@@ -90,6 +90,20 @@ def test_install_and_uninstall_are_idempotent():
             dns_fallback.uninstall()
 
 
+def test_force_os_resolver_switches_aiohttp_to_threaded():
+    import aiohttp
+    import aiohttp.connector as connector
+
+    original = connector.DefaultResolver
+    try:
+        assert dns_fallback.force_os_resolver() is True
+        # aiohttp/ccxt now resolve via the OS (getaddrinfo), like curl does,
+        # instead of c-ares which fails on some networks.
+        assert connector.DefaultResolver is aiohttp.ThreadedResolver
+    finally:
+        connector.DefaultResolver = original
+
+
 def test_real_resolution_still_works_after_install():
     # Installing must not break normal localhost resolution.
     try:

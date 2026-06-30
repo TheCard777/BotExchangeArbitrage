@@ -1,17 +1,21 @@
-"""System-first DNS with a DNS-over-HTTPS (DoH) fallback.
+"""Make the bot's DNS resolution behave like curl/the browser.
 
-On some machines (seen on slow/limited mobile connections) the *system* DNS
-is broken or blocked, yet the browser still works because it resolves names
-over HTTPS (DoH). Plain Python then fails every connection with a DNS error
-while the browser is fine.
+Two real-world failures seen on a client's machine, both fixed here:
 
-This module installs a wrapper around socket.getaddrinfo that keeps using the
-system resolver normally, and only when it fails falls back to querying public
-DoH resolvers (Cloudflare 1.1.1.1, Google 8.8.8.8) — reached by IP, so no
-working system DNS is needed. Because it is system-first, it adds nothing to
-the normal path and cannot regress a machine whose DNS already works.
+1. aiohttp (and therefore ccxt) defaults to the c-ares resolver (the `aiodns`
+   package) when it is installed. On some networks c-ares fails to resolve
+   ("ClientConnectorDNSError") even though the OS resolver works fine — proven
+   by `curl https://api.binance.com/...` returning 200 on the same machine
+   where the bot failed. force_os_resolver() makes aiohttp use the OS resolver
+   (getaddrinfo), exactly what curl and the browser use.
 
-Stdlib only (urllib + ssl), so no extra dependency to install.
+2. On machines whose system DNS is itself broken (browser still works via its
+   own DNS-over-HTTPS), install_doh_fallback() wraps socket.getaddrinfo so it
+   falls back to public DoH resolvers (1.1.1.1, 8.8.8.8, reached by IP) only
+   when the system resolver fails — system-first, so it never regresses a
+   machine whose DNS already works.
+
+install() applies both. Stdlib only for the DoH part (urllib + ssl).
 """
 from __future__ import annotations
 
@@ -74,12 +78,30 @@ def _patched_getaddrinfo(host, port, *args, **kwargs):
         ]
 
 
+def force_os_resolver() -> bool:
+    """Make aiohttp/ccxt resolve via the OS (getaddrinfo) instead of c-ares.
+
+    This is the fix for networks where the c-ares resolver (aiodns) fails but
+    the OS resolver works (curl/browser work, the bot doesn't). Returns True if
+    the resolver was switched. Safe no-op if aiohttp isn't importable.
+    """
+    try:
+        import aiohttp
+        import aiohttp.connector as connector
+
+        connector.DefaultResolver = aiohttp.ThreadedResolver
+        return True
+    except Exception:
+        return False
+
+
 def install() -> None:
-    """Activate the DoH fallback process-wide. Idempotent and safe: if anything
-    goes wrong it leaves the standard resolver untouched."""
+    """Apply both DNS fixes process-wide. Idempotent and safe: if anything goes
+    wrong it leaves the standard resolver untouched."""
     global _installed
     if _installed:
         return
+    force_os_resolver()
     try:
         socket.getaddrinfo = _patched_getaddrinfo
         _installed = True
