@@ -78,6 +78,10 @@ class ArbitrageScanner:
         self.clients = clients
         self.pairs = pairs
         self.min_profit_threshold = min_profit_threshold
+        # Summary of the most recent scan, so the bot can show a heartbeat
+        # (it's alive, and the best spread it saw) even when nothing beats the
+        # profit threshold — which is the normal case most of the time.
+        self.last_scan_summary: dict = {}
 
     async def load_markets(self):
         await asyncio.gather(*(client.load_markets() for client in self.clients.values()))
@@ -121,4 +125,13 @@ class ArbitrageScanner:
     async def scan(self) -> list[Opportunity]:
         tickers = await self._fetch_all_tickers()
         fees = self._fee_table()
-        return find_opportunities(tickers, fees, self.pairs, self.min_profit_threshold)
+        # Compute every spread (unfiltered) once, so we can both return the
+        # profitable ones and report the best one seen for the heartbeat.
+        all_spreads = find_opportunities(tickers, fees, self.pairs, float("-inf"))
+        priced_pairs = {pair for prices in tickers.values() for pair in prices}
+        self.last_scan_summary = {
+            "exchanges": len(tickers),
+            "pairs_priced": len(priced_pairs),
+            "best": all_spreads[0] if all_spreads else None,
+        }
+        return [o for o in all_spreads if o.net_profit_fraction >= self.min_profit_threshold]

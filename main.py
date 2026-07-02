@@ -194,6 +194,26 @@ async def run() -> None:
                 logger.exception("Echec du scan, nouvelle tentative au prochain cycle")
                 opportunities = []
 
+            # Heartbeat: show the bot is alive and the best spread it sees,
+            # even when nothing beats the threshold (the normal case) — so an
+            # idle-looking screen is clearly "working, no opportunity" not
+            # "frozen".
+            summary = scanner.last_scan_summary
+            best = summary.get("best")
+            if best is not None:
+                logger.info(
+                    "Scan OK (%d exchanges) — meilleur ecart net : %+.3f%% sur %s (%s->%s) | seuil %.3f%% | %d opportunite(s) exploitable(s)",
+                    summary.get("exchanges", 0),
+                    best.net_profit_fraction * 100,
+                    best.pair,
+                    best.buy_exchange,
+                    best.sell_exchange,
+                    scanner.min_profit_threshold * 100,
+                    len(opportunities),
+                )
+            else:
+                logger.info("Scan OK — en attente de prix exploitables depuis les exchanges...")
+
             for opportunity in opportunities:
                 try:
                     await executor.execute(opportunity)

@@ -73,3 +73,26 @@ async def test_scan_returns_empty_when_no_spread():
     b = FakeClient("b", prices={"BTC/USDT": 100.0})
     scanner = make_scanner([a, b], ["BTC/USDT"], threshold=0.005)
     assert await scanner.scan() == []
+
+
+async def test_scan_summary_reports_best_spread_even_below_threshold():
+    # Spread is real but below the 0.5% threshold: nothing returned, yet the
+    # heartbeat summary should still report the best spread it saw.
+    a = FakeClient("a", prices={"BTC/USDT": 100.0}, fees={"BTC/USDT": 0.0})
+    b = FakeClient("b", prices={"BTC/USDT": 100.1}, fees={"BTC/USDT": 0.0})
+    scanner = make_scanner([a, b], ["BTC/USDT"], threshold=0.005)
+    opportunities = await scanner.scan()
+    assert opportunities == []
+    summary = scanner.last_scan_summary
+    assert summary["exchanges"] == 2
+    assert summary["best"] is not None
+    assert summary["best"].buy_exchange == "a" and summary["best"].sell_exchange == "b"
+    assert 0 < summary["best"].net_profit_fraction < 0.005
+
+
+async def test_scan_summary_best_is_none_when_no_prices():
+    a = FakeClient("a", ticker_error=ConnectionError("down"))
+    b = FakeClient("b", ticker_error=ConnectionError("down"))
+    scanner = make_scanner([a, b], ["BTC/USDT"], threshold=0.005)
+    assert await scanner.scan() == []
+    assert scanner.last_scan_summary["best"] is None
