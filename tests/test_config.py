@@ -40,9 +40,9 @@ def test_loads_valid_config(tmp_path, monkeypatch):
     assert config.max_trade_size_quote == 200
     assert config.request_timeout_seconds == 25
     # API keys are pulled from the environment by exchange prefix.
-    assert config.api_keys["binance"] == {"apiKey": "k1", "secret": "s1"}
+    assert config.api_keys["binance"] == {"apiKey": "k1", "secret": "s1", "password": ""}
     # Unset exchange still gets a (blank) entry rather than missing.
-    assert config.api_keys["kraken"] == {"apiKey": "", "secret": ""}
+    assert config.api_keys["kraken"] == {"apiKey": "", "secret": "", "password": ""}
 
 
 def test_applies_sane_defaults_when_optional_fields_missing(tmp_path):
@@ -216,3 +216,53 @@ def test_credentials_for_returns_when_present():
         api_keys={"binance": {"apiKey": "k", "secret": "s"}},
     )
     assert config.credentials_for("binance") == {"apiKey": "k", "secret": "s"}
+
+
+def _config_with(api_keys):
+    return Config(
+        dry_run=False,
+        scan_interval_seconds=10,
+        exchanges=list(api_keys),
+        pairs=["BTC/USDT"],
+        min_profit_threshold=0.005,
+        max_trade_size_quote=100,
+        max_balance_fraction_per_trade=1.0,
+        max_slippage=0.002,
+        logging=LoggingConfig(),
+        api_keys=api_keys,
+    )
+
+
+def test_passphrase_read_from_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUCOIN_API_KEY", "k")
+    monkeypatch.setenv("KUCOIN_API_SECRET", "s")
+    monkeypatch.setenv("KUCOIN_API_PASSPHRASE", "p")
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - kucoin
+          - binance
+        pairs:
+          - BTC/USDT
+        """,
+    )
+    config = load_config(path)
+    assert config.api_keys["kucoin"] == {"apiKey": "k", "secret": "s", "password": "p"}
+
+
+def test_kucoin_requires_passphrase():
+    config = _config_with({"kucoin": {"apiKey": "k", "secret": "s", "password": ""}})
+    with pytest.raises(ValueError, match="passphrase"):
+        config.credentials_for("kucoin")
+
+
+def test_kucoin_ok_with_passphrase():
+    config = _config_with({"kucoin": {"apiKey": "k", "secret": "s", "password": "p"}})
+    assert config.credentials_for("kucoin")["password"] == "p"
+
+
+def test_binance_does_not_require_passphrase():
+    config = _config_with({"binance": {"apiKey": "k", "secret": "s", "password": ""}})
+    # No passphrase needed for Binance — must not raise.
+    assert config.credentials_for("binance")["apiKey"] == "k"

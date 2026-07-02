@@ -11,23 +11,26 @@ class ExchangeClient:
         self.id = exchange_id
         exchange_class = getattr(ccxt, exchange_id)
         creds = config.credentials_for(exchange_id) if not config.dry_run else config.api_keys.get(exchange_id, {})
-        self.exchange = exchange_class(
-            {
-                "apiKey": creds.get("apiKey", ""),
-                "secret": creds.get("secret", ""),
-                "enableRateLimit": True,
-                # ccxt's 10s default is too tight on slow/high-latency
-                # connections, where it's the main cause of false
-                # "can't connect" failures (the request is in flight,
-                # just slow — not actually blocked).
-                "timeout": int(config.request_timeout_seconds * 1000),
-                # Honour the system/env proxy (HTTP_PROXY/HTTPS_PROXY) like a
-                # browser does. On networks where internet is only reachable
-                # through a proxy/tunnel, this is what lets the bot connect
-                # at all instead of failing with DNS/connection errors.
-                "aiohttp_trust_env": True,
-            }
-        )
+        params = {
+            "apiKey": creds.get("apiKey", ""),
+            "secret": creds.get("secret", ""),
+            "enableRateLimit": True,
+            # ccxt's 10s default is too tight on slow/high-latency
+            # connections, where it's the main cause of false
+            # "can't connect" failures (the request is in flight,
+            # just slow — not actually blocked).
+            "timeout": int(config.request_timeout_seconds * 1000),
+            # Honour the system/env proxy (HTTP_PROXY/HTTPS_PROXY) like a
+            # browser does. On networks where internet is only reachable
+            # through a proxy/tunnel, this is what lets the bot connect
+            # at all instead of failing with DNS/connection errors.
+            "aiohttp_trust_env": True,
+        }
+        # KuCoin/OKX also need an API passphrase; pass it only when present.
+        password = creds.get("password", "")
+        if password:
+            params["password"] = password
+        self.exchange = exchange_class(params)
 
     async def load_markets(self):
         return await self.exchange.load_markets()

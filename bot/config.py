@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
+# Exchanges that require a third credential (an API passphrase) on top of the
+# key and secret. Without it, real-mode auth on these exchanges fails.
+PASSPHRASE_EXCHANGES = {"kucoin", "okx"}
+
 
 @dataclass
 class LoggingConfig:
@@ -37,6 +41,12 @@ class Config:
             raise ValueError(
                 f"Missing API credentials for '{exchange_id}'. "
                 f"Set {exchange_id.upper()}_API_KEY / {exchange_id.upper()}_API_SECRET in .env"
+            )
+        if exchange_id in PASSPHRASE_EXCHANGES and not creds.get("password"):
+            raise ValueError(
+                f"'{exchange_id}' requiert aussi une passphrase API. "
+                f"Definis {exchange_id.upper()}_API_PASSPHRASE dans .env "
+                f"(relance ./install.sh pour la saisir)."
             )
         return creds
 
@@ -96,6 +106,8 @@ def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
         api_keys[exchange_id] = {
             "apiKey": os.getenv(f"{prefix}_API_KEY", ""),
             "secret": os.getenv(f"{prefix}_API_SECRET", ""),
+            # Only some exchanges (KuCoin, OKX) use a passphrase; empty for the rest.
+            "password": os.getenv(f"{prefix}_API_PASSPHRASE", ""),
         }
 
     return Config(

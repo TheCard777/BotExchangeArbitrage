@@ -8,6 +8,8 @@ from __future__ import annotations
 import getpass
 from pathlib import Path
 
+from bot.config import PASSPHRASE_EXCHANGES
+
 ROOT_DIR = Path(__file__).resolve().parent
 
 SUPPORTED_EXCHANGES = [
@@ -127,7 +129,7 @@ def choose_pairs() -> list[str]:
         return pairs
 
 
-def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str]]:
+def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
     print()
     print("Pour chaque exchange, entre une cle API avec les droits de")
     print("TRADING uniquement (jamais de droit de retrait). La saisie est masquee.")
@@ -138,18 +140,27 @@ def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str]]:
         print(f"-- {label} --")
         api_key = getpass.getpass(f"  Cle API {label} (laisser vide pour passer) : ").strip()
         api_secret = ""
+        passphrase = ""
         if api_key:
             api_secret = getpass.getpass(f"  Secret API {label} : ").strip()
-        keys[exchange_id] = (api_key, api_secret)
+            if exchange_id in PASSPHRASE_EXCHANGES:
+                # KuCoin/OKX ask for a passphrase when you create the key.
+                passphrase = getpass.getpass(f"  Passphrase API {label} : ").strip()
+        keys[exchange_id] = (api_key, api_secret, passphrase)
     return keys
 
 
-def write_env(keys: dict[str, tuple[str, str]]) -> None:
+def write_env(keys: dict[str, tuple[str, str, str]]) -> None:
     lines = ["# Genere par setup_wizard.py. Ne partage jamais ce fichier.", ""]
-    for exchange_id, (api_key, api_secret) in keys.items():
+    for exchange_id, creds in keys.items():
+        # Accept 2- or 3-tuples so older callers/tests keep working.
+        api_key, api_secret = creds[0], creds[1]
+        passphrase = creds[2] if len(creds) > 2 else ""
         prefix = exchange_id.upper()
         lines.append(f"{prefix}_API_KEY={api_key}")
         lines.append(f"{prefix}_API_SECRET={api_secret}")
+        if exchange_id in PASSPHRASE_EXCHANGES:
+            lines.append(f"{prefix}_API_PASSPHRASE={passphrase}")
         lines.append("")
     (ROOT_DIR / ".env").write_text("\n".join(lines))
 
@@ -185,7 +196,7 @@ def main() -> None:
     pairs = choose_pairs()
 
     if mode == "1":
-        keys = {eid: ("", "") for eid in exchanges}
+        keys = {eid: ("", "", "") for eid in exchanges}
         dry_run = True
         max_trade_size_quote = 100
         print()

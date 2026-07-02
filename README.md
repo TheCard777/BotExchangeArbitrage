@@ -5,7 +5,8 @@ automatiquement les écarts de prix rentables.
 
 > 📖 **Débutant ?** Lis d'abord **[GUIDE.md](GUIDE.md)** : il explique tout
 > pas à pas (installation, mode démo, passage au trading réel, et les points
-> de sécurité à connaître).
+> de sécurité à connaître). Pour créer tes clés API exchange par exchange,
+> vois **[GUIDE_API.md](GUIDE_API.md)**.
 
 ## Démarrage rapide (débutants)
 

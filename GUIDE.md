@@ -84,6 +84,8 @@ comportement du bot.** À partir d'ici, le bot utilise ton vrai argent.
 1. **Des clés API** sur chaque exchange utilisé, avec le droit de
    **TRADING UNIQUEMENT** — jamais le droit de **retrait/withdrawal**
    (sécurité : même si les clés fuient, personne ne peut sortir tes fonds).
+   > 📖 Marche à suivre détaillée, exchange par exchange :
+   > **[GUIDE_API.md](GUIDE_API.md)**.
 2. **Des fonds déjà présents des DEUX côtés.** Le bot **ne transfère pas** de
    crypto entre exchanges (trop lent). Il faut donc, par exemple :
    - sur l'exchange où il **achète** : de l'**USDT** ;
