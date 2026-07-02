@@ -22,7 +22,7 @@ def test_generated_config_loads_back(tmp_path, monkeypatch):
     assert config.pairs == ["BTC/USDT", "ETH/USDT"]
     assert config.max_trade_size_quote == 250.0
     # The timeout field added for slow connections must survive the round-trip.
-    assert config.request_timeout_seconds == 30
+    assert config.request_timeout_seconds == 60
 
 
 def test_generated_config_live_mode(tmp_path, monkeypatch):

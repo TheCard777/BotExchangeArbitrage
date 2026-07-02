@@ -163,7 +163,9 @@ async def run() -> None:
     executor = TradeExecutor(clients, config)
 
     try:
-        await connect_with_retries(scanner)
+        # Give each exchange a bit more than its own request timeout, so a
+        # large market download on a slow link isn't cut off prematurely.
+        await connect_with_retries(scanner, timeout_seconds=config.request_timeout_seconds + 20)
     except RuntimeError:
         if await check_internet_connectivity():
             raise RuntimeError(

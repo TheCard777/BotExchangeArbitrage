@@ -52,7 +52,7 @@ max_slippage: 0.002
 
 # Temps maximum (en secondes) attendu avant d'abandonner une requete a un exchange.
 # Augmente cette valeur si ta connexion internet est lente ou instable.
-request_timeout_seconds: 30
+request_timeout_seconds: 60
 
 logging:
   level: INFO

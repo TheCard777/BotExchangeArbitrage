@@ -61,7 +61,7 @@ def test_applies_sane_defaults_when_optional_fields_missing(tmp_path):
     assert config.scan_interval_seconds == 10
     assert config.min_profit_threshold == 0.005
     assert config.max_trade_size_quote == 100
-    assert config.request_timeout_seconds == 30.0
+    assert config.request_timeout_seconds == 60.0
     assert isinstance(config.logging, LoggingConfig)
 
 
