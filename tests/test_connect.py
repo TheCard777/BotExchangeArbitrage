@@ -63,6 +63,25 @@ async def test_raises_when_fewer_than_two_exchanges_survive():
         await main.connect_with_retries(scanner, attempts=2, delay_seconds=0)
 
 
+async def test_hanging_exchange_is_timed_out_and_dropped():
+    import asyncio
+
+    class HangingClient(FakeClient):
+        async def load_markets(self):
+            self.load_attempts += 1
+            await asyncio.sleep(10)  # never completes within the test timeout
+
+    a = FakeClient("a")
+    b = FakeClient("b")
+    hang = HangingClient("hang")
+    scanner = make_scanner([a, b, hang])
+    # A tiny per-exchange timeout means the hanging one is dropped instead of
+    # freezing startup; the responsive exchanges still connect.
+    await main.connect_with_retries(scanner, attempts=2, delay_seconds=0, timeout_seconds=0.05)
+    assert set(scanner.clients) == {"a", "b"}
+    assert hang.closed is True
+
+
 async def test_raises_when_all_exchanges_fail():
     d1 = FakeClient("d1", load_error=ConnectionError("nope"))
     d2 = FakeClient("d2", load_error=ConnectionError("nope"))

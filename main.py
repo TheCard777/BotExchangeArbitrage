@@ -53,16 +53,35 @@ async def check_internet_connectivity(per_host_timeout: float = 6) -> bool:
         return False
 
 
-async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, delay_seconds: float = 5) -> None:
+async def connect_with_retries(
+    scanner: ArbitrageScanner,
+    attempts: int = 5,
+    delay_seconds: float = 5,
+    timeout_seconds: float = 45,
+) -> None:
     """Connect to every configured exchange, retrying only the ones still
     failing on each attempt. An exchange that never connects is dropped
     instead of blocking the others — one flaky/unreachable exchange
-    shouldn't stop the bot from running on the rest.
+    shouldn't stop the bot from running on the rest. Each exchange has a hard
+    timeout so a single stalled connection can't freeze startup, and progress
+    is logged per exchange so a slow link looks like progress, not a freeze.
     """
+    async def connect_one(exchange_id: str, client) -> None:
+        await asyncio.wait_for(client.load_markets(), timeout=timeout_seconds)
+        logger.info("Connecte a %s", exchange_id)
+
     remaining = dict(scanner.clients)
     for attempt in range(1, attempts + 1):
+        logger.info(
+            "Connexion aux exchanges en cours (%s) — essai %d/%d. Cela peut prendre "
+            "jusqu'a %ds par exchange sur une connexion lente, patiente...",
+            ", ".join(remaining),
+            attempt,
+            attempts,
+            int(timeout_seconds),
+        )
         results = await asyncio.gather(
-            *(client.load_markets() for client in remaining.values()),
+            *(connect_one(exchange_id, client) for exchange_id, client in remaining.items()),
             return_exceptions=True,
         )
         failures = {
@@ -71,6 +90,7 @@ async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, del
             if isinstance(result, Exception)
         }
         if not failures:
+            logger.info("Tous les exchanges sont connectes : %s", ", ".join(scanner.clients))
             return
 
         if attempt == attempts:
@@ -98,6 +118,12 @@ async def connect_with_retries(scanner: ArbitrageScanner, attempts: int = 5, del
 
     if len(scanner.clients) < 2:
         raise RuntimeError("Pas assez d'exchanges connectes (minimum 2) pour comparer les prix.")
+
+    logger.info(
+        "Demarrage avec %d exchange(s) connecte(s) : %s",
+        len(scanner.clients),
+        ", ".join(scanner.clients),
+    )
 
 
 def _dns_self_test(host: str = "api.binance.com") -> str:

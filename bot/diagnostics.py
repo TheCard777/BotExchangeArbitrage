@@ -112,7 +112,7 @@ def classify_error(exc: BaseException) -> tuple[str, str]:
     # No keyword matched — fall back to the exception type. ccxt names are:
     # RequestTimeout, OnMaintenance, AuthenticationError/PermissionDenied,
     # DDoSProtection, ExchangeNotAvailable, and the NetworkError base class.
-    if "requesttimeout" in type_names:
+    if "requesttimeout" in type_names or "timeouterror" in type_names:
         return TIMEOUT, (
             "Delai depasse : la connexion est trop lente ou instable pour cet exchange. "
             "Augmente request_timeout_seconds dans config.yaml (ex: 60) ou change de reseau."
