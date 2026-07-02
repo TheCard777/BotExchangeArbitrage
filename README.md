@@ -3,6 +3,10 @@
 Compare les prix entre plusieurs exchanges crypto et peut trader
 automatiquement les écarts de prix rentables.
 
+> 📖 **Débutant ?** Lis d'abord **[GUIDE.md](GUIDE.md)** : il explique tout
+> pas à pas (installation, mode démo, passage au trading réel, et les points
+> de sécurité à connaître).
+
 ## Démarrage rapide (débutants)
 
 1. **Installer** (crée l'environnement et installe tout automatiquement) :

@@ -219,6 +219,7 @@ def main() -> None:
     print(f"  Paires : {', '.join(pairs)}")
     print()
     print("Pour lancer le bot : ./start.sh")
+    print("Guide complet pas a pas : ouvre le fichier GUIDE.md")
     if dry_run:
         print()
         print("Quand tu seras pret a trader pour de vrai, relance ./install.sh")
