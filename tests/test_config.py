@@ -62,7 +62,23 @@ def test_applies_sane_defaults_when_optional_fields_missing(tmp_path):
     assert config.min_profit_threshold == 0.005
     assert config.max_trade_size_quote == 100
     assert config.request_timeout_seconds == 60.0
+    assert config.realtime is True  # real-time WebSocket on by default
     assert isinstance(config.logging, LoggingConfig)
+
+
+def test_realtime_can_be_disabled(tmp_path):
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        realtime: false
+        """,
+    )
+    assert load_config(path).realtime is False
 
 
 def test_empty_file_is_rejected_with_clear_message(tmp_path):

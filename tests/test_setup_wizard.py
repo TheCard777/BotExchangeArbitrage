@@ -6,6 +6,37 @@ the user discovering it when the bot won't start.
 """
 import setup_wizard
 from bot.config import load_config
+from setup_wizard import parse_exchange_selection
+
+
+def test_select_multiple_by_comma():
+    assert parse_exchange_selection("1,2") == ["binance", "kraken"]
+
+
+def test_select_by_range():
+    assert parse_exchange_selection("1-3") == ["binance", "kraken", "coinbase"]
+
+
+def test_select_all_keyword():
+    result = parse_exchange_selection("tous")
+    assert result == ["binance", "kraken", "coinbase", "bybit", "kucoin", "okx"]
+    assert parse_exchange_selection("all") == result
+
+
+def test_select_dedupes_and_keeps_order():
+    assert parse_exchange_selection("2,1,2") == ["kraken", "binance"]
+
+
+def test_select_rejects_fewer_than_two():
+    assert parse_exchange_selection("1") is None
+
+
+def test_select_rejects_out_of_range():
+    assert parse_exchange_selection("1,99") is None
+
+
+def test_select_rejects_garbage():
+    assert parse_exchange_selection("abc") is None
 
 
 def test_generated_config_loads_back(tmp_path, monkeypatch):

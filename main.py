@@ -15,6 +15,7 @@ from bot.dns_fallback import install as install_dns_fallback
 from bot.exchange_client import ExchangeClient
 from bot.executor import TradeAborted, TradeExecutor
 from bot.logger import setup_logging
+from bot.price_feed import RealtimePriceFeed
 from bot.scanner import ArbitrageScanner
 
 logger = logging.getLogger("arbitrage.main")
@@ -178,6 +179,18 @@ async def run() -> None:
             "(et coupe ton VPN si tu en as un), puis relance ./start.sh."
         ) from None
 
+    # Real-time mode: stream prices over WebSocket from the surviving exchanges
+    # and scan the live cache fast. Falls back to REST polling if disabled.
+    price_feed = None
+    if config.realtime:
+        price_feed = RealtimePriceFeed(scanner.clients, config.pairs)
+        price_feed.start()
+        scanner.price_feed = price_feed
+        loop_interval = 1.0
+    else:
+        logger.info("Mode temps reel desactive — scan REST toutes les %ss.", config.scan_interval_seconds)
+        loop_interval = config.scan_interval_seconds
+
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -185,6 +198,9 @@ async def run() -> None:
             loop.add_signal_handler(sig, stop_event.set)
         except NotImplementedError:
             pass
+
+    heartbeat_every = 10.0  # seconds between heartbeat log lines
+    last_heartbeat = 0.0
 
     try:
         while not stop_event.is_set():
@@ -197,22 +213,25 @@ async def run() -> None:
             # Heartbeat: show the bot is alive and the best spread it sees,
             # even when nothing beats the threshold (the normal case) — so an
             # idle-looking screen is clearly "working, no opportunity" not
-            # "frozen".
+            # "frozen". Throttled so fast real-time scanning doesn't spam.
+            now = loop.time()
             summary = scanner.last_scan_summary
             best = summary.get("best")
-            if best is not None:
-                logger.info(
-                    "Scan OK (%d exchanges) — meilleur ecart net : %+.3f%% sur %s (%s->%s) | seuil %.3f%% | %d opportunite(s) exploitable(s)",
-                    summary.get("exchanges", 0),
-                    best.net_profit_fraction * 100,
-                    best.pair,
-                    best.buy_exchange,
-                    best.sell_exchange,
-                    scanner.min_profit_threshold * 100,
-                    len(opportunities),
-                )
-            else:
-                logger.info("Scan OK — en attente de prix exploitables depuis les exchanges...")
+            if now - last_heartbeat >= heartbeat_every:
+                last_heartbeat = now
+                if best is not None:
+                    logger.info(
+                        "Scan OK (%d exchanges) — meilleur ecart net : %+.3f%% sur %s (%s->%s) | seuil %.3f%% | %d opportunite(s) exploitable(s)",
+                        summary.get("exchanges", 0),
+                        best.net_profit_fraction * 100,
+                        best.pair,
+                        best.buy_exchange,
+                        best.sell_exchange,
+                        scanner.min_profit_threshold * 100,
+                        len(opportunities),
+                    )
+                else:
+                    logger.info("Scan OK — en attente de prix exploitables depuis les exchanges...")
 
             for opportunity in opportunities:
                 try:
@@ -223,10 +242,12 @@ async def run() -> None:
                     logger.exception("Erreur inattendue lors de l'execution d'une opportunite")
 
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=config.scan_interval_seconds)
+                await asyncio.wait_for(stop_event.wait(), timeout=loop_interval)
             except asyncio.TimeoutError:
                 pass
     finally:
+        if price_feed is not None:
+            await price_feed.stop()
         # Close every client even if one close() fails — return_exceptions
         # keeps a single bad shutdown from leaking the other sessions.
         await asyncio.gather(

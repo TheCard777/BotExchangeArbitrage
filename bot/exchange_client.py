@@ -1,7 +1,9 @@
 """Thin async wrapper around ccxt exchanges used by the bot."""
 from __future__ import annotations
 
-import ccxt.async_support as ccxt
+# ccxt.pro is a superset of ccxt.async_support: same REST methods, plus
+# WebSocket streaming (watch_ticker) for real-time prices.
+import ccxt.pro as ccxt
 
 from bot.config import Config
 
@@ -41,6 +43,14 @@ class ExchangeClient:
 
     async def fetch_ticker(self, symbol: str):
         return await self.exchange.fetch_ticker(symbol)
+
+    @property
+    def supports_websocket(self) -> bool:
+        return bool(self.exchange.has.get("watchTicker"))
+
+    async def watch_ticker(self, symbol: str):
+        """Wait for the next real-time ticker update over WebSocket."""
+        return await self.exchange.watch_ticker(symbol)
 
     async def fetch_balance(self):
         return await self.exchange.fetch_balance()

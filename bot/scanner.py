@@ -74,10 +74,18 @@ def find_opportunities(
 
 
 class ArbitrageScanner:
-    def __init__(self, clients: dict[str, ExchangeClient], pairs: list[str], min_profit_threshold: float):
+    def __init__(
+        self,
+        clients: dict[str, ExchangeClient],
+        pairs: list[str],
+        min_profit_threshold: float,
+        price_feed=None,
+    ):
         self.clients = clients
         self.pairs = pairs
         self.min_profit_threshold = min_profit_threshold
+        # When set, prices come from this live WebSocket cache instead of REST.
+        self.price_feed = price_feed
         # Summary of the most recent scan, so the bot can show a heartbeat
         # (it's alive, and the best spread it saw) even when nothing beats the
         # profit threshold — which is the normal case most of the time.
@@ -87,6 +95,10 @@ class ArbitrageScanner:
         await asyncio.gather(*(client.load_markets() for client in self.clients.values()))
 
     async def _fetch_all_tickers(self) -> dict[str, dict[str, float]]:
+        # Real-time mode: read the live WebSocket cache, no network cost.
+        if self.price_feed is not None:
+            return self.price_feed.snapshot()
+
         async def fetch_for_exchange(exchange_id: str, client: ExchangeClient):
             results = {}
             for pair in self.pairs:

@@ -149,8 +149,15 @@ Tu peux ouvrir `config.yaml` avec un éditeur de texte pour ajuster :
 - `scan_interval_seconds` : fréquence des scans (par défaut 10 secondes).
 - `request_timeout_seconds` : temps d'attente max par exchange. Augmente-le
   (ex. `90`) si ta connexion est très lente.
+- `realtime` : `true` = prix en **temps réel via WebSocket** (recommandé, le
+  bot réagit instantanément). Passe à `false` si ta connexion est trop
+  instable pour maintenir un flux continu — il repassera en scan classique
+  toutes les `scan_interval_seconds`.
 
 Après modification, relance `start.sh`.
+
+> **Choisir plusieurs exchanges d'un coup** : dans l'assistant, tu peux taper
+> plusieurs numéros (`1,2,5`), une plage (`1-4`), ou simplement **`tous`**.
 
 ---
 

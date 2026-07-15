@@ -33,6 +33,7 @@ class Config:
     max_slippage: float
     logging: LoggingConfig
     request_timeout_seconds: float = 60.0
+    realtime: bool = True
     api_keys: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def credentials_for(self, exchange_id: str) -> dict[str, str]:
@@ -121,5 +122,6 @@ def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
         max_slippage=raw.get("max_slippage", 0.002),
         logging=LoggingConfig(**(raw.get("logging") or {})),
         request_timeout_seconds=_positive(raw, "request_timeout_seconds", 60.0),
+        realtime=bool(raw.get("realtime", True)),
         api_keys=api_keys,
     )

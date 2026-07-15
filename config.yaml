@@ -31,6 +31,11 @@ max_slippage: 0.002
 # Augmente cette valeur si ta connexion internet est lente ou instable.
 request_timeout_seconds: 60
 
+# realtime: true  -> prix en temps reel via WebSocket (recommande).
+# realtime: false -> scan REST classique toutes les scan_interval_seconds
+#                    (utile si ta connexion est trop instable pour le WebSocket).
+realtime: true
+
 logging:
   level: INFO
   file: logs/arbitrage.log

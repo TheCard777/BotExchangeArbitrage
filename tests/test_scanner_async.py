@@ -96,3 +96,23 @@ async def test_scan_summary_best_is_none_when_no_prices():
     scanner = make_scanner([a, b], ["BTC/USDT"], threshold=0.005)
     assert await scanner.scan() == []
     assert scanner.last_scan_summary["best"] is None
+
+
+class _FakeFeed:
+    def __init__(self, snapshot):
+        self._snapshot = snapshot
+
+    def snapshot(self):
+        return self._snapshot
+
+
+async def test_scan_uses_price_feed_snapshot_when_set():
+    # These REST clients would raise if called — the feed must be used instead.
+    a = FakeClient("a", ticker_error=AssertionError("REST must not be called"))
+    b = FakeClient("b", ticker_error=AssertionError("REST must not be called"))
+    scanner = make_scanner([a, b], ["BTC/USDT"], threshold=0.005)
+    scanner.price_feed = _FakeFeed({"a": {"BTC/USDT": 100.0}, "b": {"BTC/USDT": 105.0}})
+    opportunities = await scanner.scan()
+    assert len(opportunities) == 1
+    assert opportunities[0].buy_exchange == "a"
+    assert opportunities[0].sell_exchange == "b"

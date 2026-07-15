@@ -56,6 +56,10 @@ max_slippage: 0.002
 # Augmente cette valeur si ta connexion internet est lente ou instable.
 request_timeout_seconds: 60
 
+# realtime: true  -> prix en temps reel via WebSocket (recommande).
+# realtime: false -> scan REST toutes les scan_interval_seconds (connexion instable).
+realtime: true
+
 logging:
   level: INFO
   file: logs/arbitrage.log
@@ -90,26 +94,56 @@ def print_header() -> None:
     print()
 
 
+def parse_exchange_selection(raw: str) -> list[str] | None:
+    """Turn the user's answer into a list of exchange ids, or None if invalid.
+
+    Accepts several numbers at once ("1,2,5"), ranges ("1-4"), and the
+    shortcut "tous"/"all" to pick every exchange in one go.
+    """
+    answer = raw.strip().lower()
+    if answer in ("tous", "toutes", "all", "*"):
+        return [eid for eid, _ in SUPPORTED_EXCHANGES]
+
+    indices: list[int] = []
+    for part in answer.replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:  # a range like "1-4"
+            try:
+                start, end = (int(x) for x in part.split("-", 1))
+            except ValueError:
+                return None
+            indices.extend(range(start, end + 1))
+        else:
+            try:
+                indices.append(int(part))
+            except ValueError:
+                return None
+
+    if len(set(indices)) < 2 or any(i < 1 or i > len(SUPPORTED_EXCHANGES) for i in indices):
+        return None
+    return [SUPPORTED_EXCHANGES[i - 1][0] for i in dict.fromkeys(indices)]
+
+
 def choose_exchanges() -> list[str]:
     print("Exchanges disponibles :")
     for i, (_, label) in enumerate(SUPPORTED_EXCHANGES, start=1):
         print(f"  {i}. {label}")
     print()
     print("Choisis-en au moins 2 (le bot compare leurs prix entre eux).")
+    print("Astuce : tape plusieurs numeros (1,2,5), une plage (1-4), ou 'tous'.")
 
     while True:
-        raw = ask("Tes choix, separes par des virgules (ex: 1,2)", "1,2")
-        try:
-            indices = [int(x.strip()) for x in raw.split(",") if x.strip()]
-        except ValueError:
-            print("  -> entre des numeros separes par des virgules, ex: 1,2")
+        raw = ask("Tes choix", "1,2")
+        selected = parse_exchange_selection(raw)
+        if selected is None:
+            print(
+                f"  -> entre au moins 2 numeros valides entre 1 et {len(SUPPORTED_EXCHANGES)} "
+                "(ex: 1,2 ou 1-4 ou 'tous')"
+            )
             continue
-
-        if len(set(indices)) < 2 or any(i < 1 or i > len(SUPPORTED_EXCHANGES) for i in indices):
-            print(f"  -> choisis au moins 2 numeros valides entre 1 et {len(SUPPORTED_EXCHANGES)}")
-            continue
-
-        return [SUPPORTED_EXCHANGES[i - 1][0] for i in dict.fromkeys(indices)]
+        return selected
 
 
 def choose_pairs() -> list[str]:
