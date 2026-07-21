@@ -23,11 +23,26 @@ surveilles, et lui exécute quand c'est rentable.
 1. Décompresse le dossier du bot dans un endroit simple (ex. le Bureau).
    > Astuce : ne garde qu'**une seule** copie du dossier, pour ne pas lancer
    > par erreur une vieille version.
-2. Lance **`install.sh`** (sur Windows : clic droit → *Git Bash Here*, puis
-   tape `./install.sh`).
+2. **Ouvre un terminal selon ton système :**
+   - **Mac** : ouvre l'app **Terminal** (Applications → Utilitaires → Terminal).
+     Pas besoin de Git Bash ni WSL — c'est du Windows, inutile ici.
+   - **Linux** : ouvre ton **Terminal**.
+   - **Windows** : clic droit dans le dossier → *Git Bash Here*.
+3. **Va dans le dossier du bot** : tape `cd ` (avec l'espace) puis glisse-dépose
+   le dossier dans la fenêtre du terminal, et appuie sur Entrée.
+4. **Installe** :
+   - Mac / Linux : `bash install.sh`
+   - Windows : `./install.sh`
+
    Un assistant te pose quelques questions simples (exchanges, paires...).
-3. Si l'assistant demande le mode : choisis **démonstration** (aucun risque).
-4. Lance **`start.sh`**.
+   Choisis le mode **démonstration** (aucun risque).
+5. **Lance le bot** :
+   - Mac / Linux : `bash start.sh`
+   - Windows : `./start.sh`
+
+> Sur Mac, `bash install.sh` (plutôt que `./install.sh`) évite un éventuel
+> souci de permission après décompression. Prérequis : **Python 3** — si le
+> script dit qu'il manque, installe-le depuis python.org puis relance.
 
 En mode démonstration, le bot **n'achète jamais rien**. Il affiche seulement
 ce qu'il observe et ce qu'il *ferait*.

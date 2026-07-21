@@ -30,7 +30,18 @@ automatiquement les écarts de prix rentables.
 3. Pour changer la configuration plus tard (ajouter des clés API, passer en
    mode réel, changer les paires...), relance simplement `./install.sh`.
 
-Sur Windows, utilise Git Bash ou WSL pour exécuter ces commandes `.sh`.
+**Selon ton système :**
+
+| Système | Quoi ouvrir | Commandes |
+|---|---|---|
+| **Mac** | Terminal (déjà installé : Applications → Utilitaires → Terminal) | `bash install.sh` puis `bash start.sh` |
+| **Linux** | Terminal (déjà installé) | `bash install.sh` puis `bash start.sh` |
+| **Windows** | Git Bash | `./install.sh` puis `./start.sh` |
+
+Sur Mac et Linux, **pas besoin de Git Bash ni WSL** (ce sont des outils
+Windows) : le Terminal intégré exécute les scripts `.sh` nativement. Astuce
+pour aller dans le dossier : tape `cd ` (avec l'espace) puis glisse-dépose le
+dossier dans la fenêtre du Terminal, et appuie sur Entrée.
 
 ## ⚠️ À lire avant de passer en argent réel
 
