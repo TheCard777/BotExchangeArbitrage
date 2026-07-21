@@ -41,6 +41,14 @@ _NETWORK_HINTS = (
 _MAINTENANCE_HINTS = ("maintenance", "system maintenance")
 _AUTH_HINTS = ("invalid api", "authentication", "api-key", "apikey", "signature", "permission denied")
 
+_AUTH_MESSAGE = (
+    "Probleme de cles API pour cet exchange : cle/secret invalide, permissions "
+    "insuffisantes, ou restriction d'IP. Verifie que la cle a bien le droit de "
+    "TRADING (lecture + trade), qu'elle n'a PAS de restriction d'IP (ou ajoute ton "
+    "IP), et qu'elle vient du compte principal (pas testnet). Sinon, reste en mode "
+    "demonstration (aucune cle requise). Reessayer ne corrigera pas une cle invalide."
+)
+
 
 def classify_http_status(status: int) -> tuple[str | None, str]:
     """Classify a *literal* HTTP status from a raw probe to an exchange API.
@@ -104,10 +112,7 @@ def classify_error(exc: BaseException) -> tuple[str, str]:
     if any(h in text for h in _MAINTENANCE_HINTS):
         return MAINTENANCE, "L'exchange est en maintenance. Reessaie plus tard."
     if any(h in text for h in _AUTH_HINTS):
-        return AUTH, (
-            "Probleme de cles API (cle/secret invalide ou droits insuffisants). "
-            "Verifie tes cles, ou reste en mode demonstration qui n'en a pas besoin."
-        )
+        return AUTH, _AUTH_MESSAGE
 
     # No keyword matched — fall back to the exception type. ccxt names are:
     # RequestTimeout, OnMaintenance, AuthenticationError/PermissionDenied,
@@ -120,10 +125,7 @@ def classify_error(exc: BaseException) -> tuple[str, str]:
     if "onmaintenance" in type_names:
         return MAINTENANCE, "L'exchange est en maintenance. Reessaie plus tard."
     if {"authenticationerror", "permissiondenied"} & type_names:
-        return AUTH, (
-            "Probleme de cles API (cle/secret invalide ou droits insuffisants). "
-            "Verifie tes cles, ou reste en mode demonstration qui n'en a pas besoin."
-        )
+        return AUTH, _AUTH_MESSAGE
     if "ddosprotection" in type_names:
         return BLOCKED, (
             "L'exchange a refuse la connexion (protection anti-abus / trop de requetes, "

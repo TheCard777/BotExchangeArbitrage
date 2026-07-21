@@ -63,6 +63,18 @@ async def test_raises_when_fewer_than_two_exchanges_survive():
         await main.connect_with_retries(scanner, attempts=2, delay_seconds=0)
 
 
+async def test_auth_failure_is_dropped_immediately_without_retries():
+    a = FakeClient("a")
+    b = FakeClient("b")
+    # A bad API key: classify_error -> AUTH, which must not be retried.
+    bad = FakeClient("bad", load_error=Exception("bybit Invalid api-key or signature"))
+    scanner = make_scanner([a, b, bad])
+    await main.connect_with_retries(scanner, attempts=5, delay_seconds=0)
+    assert set(scanner.clients) == {"a", "b"}
+    assert bad.closed is True
+    assert bad.load_attempts == 1  # dropped on the first attempt, no retries
+
+
 async def test_hanging_exchange_is_timed_out_and_dropped():
     import asyncio
 

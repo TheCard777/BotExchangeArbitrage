@@ -10,7 +10,7 @@ import aiohttp
 
 from bot import __version__
 from bot.config import load_config
-from bot.diagnostics import classify_error
+from bot.diagnostics import AUTH, GEOBLOCK, classify_error
 from bot.dns_fallback import install as install_dns_fallback
 from bot.exchange_client import ExchangeClient
 from bot.executor import TradeAborted, TradeExecutor
@@ -94,8 +94,24 @@ async def connect_with_retries(
             logger.info("Tous les exchanges sont connectes : %s", ", ".join(scanner.clients))
             return
 
+        # Split failures: a bad API key or a geo-block won't fix itself on
+        # retry, so drop those immediately with a clear message instead of
+        # wasting five attempts on them.
+        transient = {}
+        for exchange_id, error in failures.items():
+            category, reason = classify_error(error)
+            if category in (AUTH, GEOBLOCK):
+                logger.warning("%s ignore pour cette session — %s", exchange_id, reason)
+                await scanner.clients[exchange_id].close()
+                del scanner.clients[exchange_id]
+            else:
+                transient[exchange_id] = error
+
+        if not transient:
+            break
+
         if attempt == attempts:
-            for exchange_id, error in failures.items():
+            for exchange_id, error in transient.items():
                 _, reason = classify_error(error)
                 logger.warning(
                     "%s injoignable apres %d tentatives — %s (exchange ignore pour cette session)",
@@ -111,10 +127,10 @@ async def connect_with_retries(
             "Connexion aux exchanges impossible (essai %d/%d) : %s — nouvelle tentative dans %ds",
             attempt,
             attempts,
-            ", ".join(failures),
+            ", ".join(transient),
             delay_seconds,
         )
-        remaining = {exchange_id: remaining[exchange_id] for exchange_id in failures}
+        remaining = {exchange_id: remaining[exchange_id] for exchange_id in transient}
         await asyncio.sleep(delay_seconds)
 
     if len(scanner.clients) < 2:
