@@ -108,6 +108,10 @@ Si le bot affiche « impossible de se connecter aux exchanges » :
   bug : remplace l'exchange concerné par un autre (Kraken, KuCoin, OKX
   fonctionnent souvent là où Binance est bloqué) en relançant
   `./install.sh`, ou utilise un VPN vers un pays autorisé.
+- Pour **Bybit**, si son domaine principal (`api.bybit.com`) est injoignable,
+  le bot bascule automatiquement sur son domaine alternatif
+  (`api.bytick.com`). Si les deux sont bloqués, c'est une restriction réseau/
+  géographique : utilise un autre exchange ou un VPN.
 - Il réessaie automatiquement chaque exchange plusieurs fois, et ignore
   ceux qui restent injoignables au lieu de tout bloquer (il lui faut au
   moins 2 exchanges joignables pour comparer les prix).
