@@ -12,7 +12,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 # Exchanges that require a third credential (an API passphrase) on top of the
 # key and secret. Without it, real-mode auth on these exchanges fails.
-PASSPHRASE_EXCHANGES = {"kucoin", "okx"}
+PASSPHRASE_EXCHANGES = {"kucoin", "okx", "bitget"}
 
 
 @dataclass

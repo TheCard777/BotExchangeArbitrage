@@ -19,6 +19,13 @@ SUPPORTED_EXCHANGES = [
     ("bybit", "Bybit"),
     ("kucoin", "KuCoin"),
     ("okx", "OKX"),
+    ("bitget", "Bitget"),
+    ("gate", "Gate.io"),
+    ("mexc", "MEXC"),
+    ("htx", "HTX"),
+    ("bitfinex", "Bitfinex"),
+    ("cryptocom", "Crypto.com"),
+    ("bingx", "BingX"),
 ]
 
 DEFAULT_PAIRS = ["BTC/USDT", "ETH/USDT"]

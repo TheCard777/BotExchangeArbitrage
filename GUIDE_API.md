@@ -128,12 +128,37 @@ Le bot te demandera : `OKX_API_KEY`, `OKX_API_SECRET` **et**
 
 ---
 
+## Bitget  ⚠️ (passphrase requise)
+
+1. Va dans **API Management** (Gestion des API) → **Créer une clé API**.
+2. **Choisis une passphrase** et **note-la** : le bot la demandera.
+3. Permissions : coche **Trading (Spot)** en lecture + trade.
+   - ❌ ne coche PAS *Withdraw* (retrait).
+4. Copie la **clé** et le **secret**.
+
+Le bot te demandera : `BITGET_API_KEY`, `BITGET_API_SECRET` **et**
+`BITGET_API_PASSPHRASE`.
+
+---
+
+## Autres exchanges (Gate.io, MEXC, HTX, Bitfinex, Crypto.com, BingX)
+
+Même principe pour tous : dans les paramètres API de l'exchange, crée une clé
+avec **le droit de trading (spot)**, **sans droit de retrait**, et **sans
+restriction d'IP** (sinon la clé peut être rejetée). Ces exchanges n'utilisent
+que **clé + secret** (pas de passphrase). Le bot demandera
+`NOM_API_KEY` / `NOM_API_SECRET` (ex. `GATE_API_KEY`, `MEXC_API_KEY`...).
+
+La règle de sécurité est toujours la même : **trading oui, retrait jamais**.
+
+---
+
 ## Après avoir créé tes clés
 
 1. Relance **`./install.sh`**.
 2. Choisis l'option **"Oui, je veux configurer mes cles pour trader"**.
 3. Colle, pour chaque exchange, la clé, le secret (et la passphrase pour
-   KuCoin/OKX). La saisie est **masquée** à l'écran, c'est normal.
+   KuCoin/OKX/Bitget). La saisie est **masquée** à l'écran, c'est normal.
 4. Indique ton **montant maximum par trade** (commence petit : 20-50 USDT).
 5. Tape **`ACTIVER`** à la dernière question pour lancer le mode réel
    (ou Entrée pour rester en démonstration).

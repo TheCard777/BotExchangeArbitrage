@@ -18,9 +18,19 @@ def test_select_by_range():
 
 
 def test_select_all_keyword():
+    all_ids = [eid for eid, _ in setup_wizard.SUPPORTED_EXCHANGES]
     result = parse_exchange_selection("tous")
-    assert result == ["binance", "kraken", "coinbase", "bybit", "kucoin", "okx"]
+    assert result == all_ids
     assert parse_exchange_selection("all") == result
+
+
+def test_all_supported_exchanges_are_valid_ccxt_ids():
+    import ccxt.pro as ccxtpro
+
+    available = set(ccxtpro.exchanges)
+    for eid, _ in setup_wizard.SUPPORTED_EXCHANGES:
+        assert eid in available, f"{eid} is not a valid ccxt.pro exchange id"
+        assert getattr(ccxtpro, eid)().has.get("watchTicker"), f"{eid} lacks watchTicker"
 
 
 def test_select_dedupes_and_keeps_order():
