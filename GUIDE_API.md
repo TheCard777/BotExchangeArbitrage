@@ -54,16 +54,24 @@ Le bot te demandera : `BINANCE_API_KEY` et `BINANCE_API_SECRET`.
 
 ## Kraken
 
-1. Va dans **Paramètres → API** (Settings → API).
-2. Clique **Créer une clé** (Add key / Create API key).
-3. Coche les permissions :
-   - ✅ *Query Funds* (consulter les soldes)
-   - ✅ *Create & Modify Orders* (passer des ordres)
-   - ✅ *Query Open/Closed Orders & Trades*
-   - ❌ **NE coche PAS** *Withdraw Funds*.
-4. Génère la clé et copie la **Key** et la **Private Key**.
+1. Va dans **Paramètres → API** (Settings → API) → **Ajouter une clé API**.
+2. Coche exactement ces autorisations :
+   - Colonne **Fonds** : ✅ **Requête** (lire les soldes).
+   - Colonne **Ordres et transactions** :
+     ✅ **Créer et modifier des ordres** (passer les trades),
+     ✅ **Consulter les ordres et transactions ouverts** *(recommandé)*,
+     ✅ **Consulter les ordres et les transactions clôturés** *(recommandé)*.
+   - ❌ **NE coche PAS** *Retrait*, *Dépôt*, *Gains*.
+3. Laisse les 3 interrupteurs du bas sur **Désactivé** :
+   - **Interface WebSocket** : Désactivé (le bot utilise le flux public, pas
+     besoin de cette option).
+   - **Restriction d'adresse IP** : Désactivé (une restriction d'IP est une
+     cause fréquente de clé qui « ne marche pas »).
+   - **Expiration de la clé** : Désactivé (pour qu'elle ne se périme pas).
+4. Nomme-la (ex. `bot`), génère, et copie la **Key** et la **Private Key**.
 
-Le bot te demandera : `KRAKEN_API_KEY` et `KRAKEN_API_SECRET`.
+Le bot te demandera : `KRAKEN_API_KEY` (= la Key) et `KRAKEN_API_SECRET`
+(= la Private Key).
 
 ---
 
