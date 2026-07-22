@@ -66,6 +66,47 @@ def test_applies_sane_defaults_when_optional_fields_missing(tmp_path):
     assert isinstance(config.logging, LoggingConfig)
 
 
+def test_top_movers_default_and_parsing(tmp_path):
+    default = load_config(
+        write_config(tmp_path, """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        """)
+    )
+    assert default.top_movers == 0  # off by default
+
+    configured = load_config(
+        write_config(tmp_path, """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        top_movers: 5
+        """)
+    )
+    assert configured.top_movers == 5
+
+
+def test_top_movers_rejects_negative(tmp_path):
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        top_movers: -3
+        """,
+    )
+    with pytest.raises(ValueError, match="negatif"):
+        load_config(path)
+
+
 def test_realtime_can_be_disabled(tmp_path):
     path = write_config(
         tmp_path,

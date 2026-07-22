@@ -54,6 +54,37 @@ async def check_internet_connectivity(per_host_timeout: float = 6) -> bool:
         return False
 
 
+async def select_top_movers(clients: dict, pairs: list[str], count: int) -> list[str]:
+    """Keep only the `count` most volatile pairs (largest absolute 24h price
+    change across the connected exchanges). Volatile pairs are where the widest
+    cross-exchange spreads tend to appear. Falls back to all pairs if no 24h
+    data is available."""
+    async def volatility_of(exchange_id: str, client, pair: str):
+        try:
+            ticker = await client.fetch_ticker(pair)
+            pct = (ticker or {}).get("percentage")
+            return pair, abs(float(pct)) if pct is not None else None
+        except Exception:
+            return pair, None
+
+    results = await asyncio.gather(
+        *(volatility_of(eid, c, p) for eid, c in clients.items() for p in pairs),
+        return_exceptions=True,
+    )
+    best: dict[str, float] = {}
+    for item in results:
+        if isinstance(item, Exception):
+            continue
+        pair, vol = item
+        if vol is not None:
+            best[pair] = max(best.get(pair, 0.0), vol)
+
+    if not best:
+        return pairs
+    ranked = sorted(best, key=lambda p: best[p], reverse=True)
+    return ranked[:count]
+
+
 async def connect_with_retries(
     scanner: ArbitrageScanner,
     attempts: int = 5,
@@ -195,11 +226,21 @@ async def run() -> None:
             "(et coupe ton VPN si tu en as un), puis relance ./start.sh."
         ) from None
 
+    # Optional: focus on the most volatile pairs (where spreads are widest).
+    if config.top_movers and config.top_movers < len(scanner.pairs):
+        movers = await select_top_movers(scanner.clients, scanner.pairs, config.top_movers)
+        logger.info(
+            "Top movers — le bot se concentre sur les %d paires les plus volatiles : %s",
+            len(movers),
+            ", ".join(movers),
+        )
+        scanner.pairs = movers
+
     # Real-time mode: stream prices over WebSocket from the surviving exchanges
     # and scan the live cache fast. Falls back to REST polling if disabled.
     price_feed = None
     if config.realtime:
-        price_feed = RealtimePriceFeed(scanner.clients, config.pairs)
+        price_feed = RealtimePriceFeed(scanner.clients, scanner.pairs)
         price_feed.start()
         scanner.price_feed = price_feed
         loop_interval = 1.0

@@ -36,6 +36,10 @@ request_timeout_seconds: 60
 #                    (utile si ta connexion est trop instable pour le WebSocket).
 realtime: true
 
+# top_movers: N -> le bot se concentre sur les N paires les PLUS VOLATILES
+# parmi celles ci-dessus (souvent plus d'ecarts). 0 = surveiller toutes.
+top_movers: 0
+
 logging:
   level: INFO
   file: logs/arbitrage.log

@@ -193,6 +193,11 @@ plus vite. Pour trouver plus d'opportunités :
 2. **Utilise plus d'exchanges** (3-4) : plus de combinaisons = plus de chances.
 3. **Baisse `min_profit_threshold`** (ex. `0.002`) pour voir les écarts plus
    petits.
+4. **Active `top_movers`** : mets par exemple `top_movers: 8` dans
+   `config.yaml` (ou réponds à la question dans `./install.sh`). Le bot choisit
+   alors automatiquement, au démarrage, les 8 paires les **plus volatiles** du
+   moment parmi celles que tu surveilles — c'est là que les écarts sont les
+   plus probables. `0` = surveiller toutes tes paires.
 
 ⚠️ **Honnêteté** : sur les paires peu liquides, un « gros écart » affiché peut
 être trompeur — le prix peut être figé/ancien et **non exécutable** réellement

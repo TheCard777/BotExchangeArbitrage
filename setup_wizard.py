@@ -35,6 +35,8 @@ POPULAR_PAIRS = [
     "BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT",
     "AVAX/USDT", "LINK/USDT", "DOT/USDT", "LTC/USDT", "ATOM/USDT", "TRX/USDT",
     "BCH/USDT", "XLM/USDT", "NEAR/USDT", "UNI/USDT",
+    # Meme coins — very volatile, so often the widest cross-exchange spreads.
+    "SHIB/USDT", "PEPE/USDT", "WIF/USDT",
 ]
 # A broader-than-BTC/ETH default so the bot has a real chance of finding a gap.
 DEFAULT_PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "DOGE/USDT"]
@@ -75,6 +77,10 @@ request_timeout_seconds: 60
 # realtime: true  -> prix en temps reel via WebSocket (recommande).
 # realtime: false -> scan REST toutes les scan_interval_seconds (connexion instable).
 realtime: true
+
+# top_movers: N -> le bot se concentre sur les N paires les PLUS VOLATILES
+# parmi celles ci-dessus (souvent plus d'ecarts). 0 = surveiller toutes.
+top_movers: {top_movers}
 
 logging:
   level: INFO
@@ -220,6 +226,26 @@ def choose_pairs() -> list[str]:
         return selected
 
 
+def choose_top_movers(num_pairs: int) -> int:
+    print()
+    print("Le bot peut se concentrer automatiquement sur les paires les plus")
+    print("VOLATILES du moment (souvent la ou il y a le plus d'ecarts).")
+    while True:
+        raw = ask(
+            f"Combien de paires les plus volatiles garder ? (0 = surveiller tes {num_pairs} paires)",
+            "0",
+        )
+        try:
+            count = int(raw)
+        except ValueError:
+            print("  -> entre un nombre entier (0 pour toutes)")
+            continue
+        if count < 0:
+            print("  -> entre 0 ou un nombre positif")
+            continue
+        return count
+
+
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
     print()
     print("Pour chaque exchange, entre une cle API avec les droits de")
@@ -256,7 +282,13 @@ def write_env(keys: dict[str, tuple[str, str, str]]) -> None:
     (ROOT_DIR / ".env").write_text("\n".join(lines))
 
 
-def write_config(dry_run: bool, exchanges: list[str], pairs: list[str], max_trade_size_quote: float) -> None:
+def write_config(
+    dry_run: bool,
+    exchanges: list[str],
+    pairs: list[str],
+    max_trade_size_quote: float,
+    top_movers: int = 0,
+) -> None:
     exchanges_yaml = "\n".join(f"  - {e}" for e in exchanges)
     pairs_yaml = "\n".join(f"  - {p}" for p in pairs)
     content = CONFIG_TEMPLATE.format(
@@ -264,6 +296,7 @@ def write_config(dry_run: bool, exchanges: list[str], pairs: list[str], max_trad
         exchanges_yaml=exchanges_yaml,
         pairs_yaml=pairs_yaml,
         max_trade_size_quote=max_trade_size_quote,
+        top_movers=top_movers,
     )
     (ROOT_DIR / "config.yaml").write_text(content)
 
@@ -285,6 +318,7 @@ def main() -> None:
 
     exchanges = choose_exchanges()
     pairs = choose_pairs()
+    top_movers = choose_top_movers(len(pairs))
 
     if mode == "1":
         keys = {eid: ("", "", "") for eid in exchanges}
@@ -310,7 +344,7 @@ def main() -> None:
         confirm = ask("Ta reponse", "")
         dry_run = confirm.strip().upper() != LIVE_CONFIRM_PHRASE
 
-    write_config(dry_run, exchanges, pairs, max_trade_size_quote)
+    write_config(dry_run, exchanges, pairs, max_trade_size_quote, top_movers)
     write_env(keys)
 
     print()

@@ -34,6 +34,7 @@ class Config:
     logging: LoggingConfig
     request_timeout_seconds: float = 60.0
     realtime: bool = True
+    top_movers: int = 0
     api_keys: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def credentials_for(self, exchange_id: str) -> dict[str, str]:
@@ -62,6 +63,18 @@ def _positive(raw: dict, key: str, default: float) -> float:
         raise ValueError(f"'{key}' doit etre un nombre (valeur lue : {value!r}).")
     if value <= 0:
         raise ValueError(f"'{key}' doit etre superieur a 0 (valeur lue : {value}).")
+    return value
+
+
+def _non_negative_int(raw: dict, key: str, default: int) -> int:
+    """Read an integer that must be >= 0 (0 means 'disabled')."""
+    value = raw.get(key, default)
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"'{key}' doit etre un nombre entier (valeur lue : {value!r}).")
+    if value < 0:
+        raise ValueError(f"'{key}' ne peut pas etre negatif (valeur lue : {value}).")
     return value
 
 
@@ -123,5 +136,6 @@ def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
         logging=LoggingConfig(**(raw.get("logging") or {})),
         request_timeout_seconds=_positive(raw, "request_timeout_seconds", 60.0),
         realtime=bool(raw.get("realtime", True)),
+        top_movers=_non_negative_int(raw, "top_movers", 0),
         api_keys=api_keys,
     )

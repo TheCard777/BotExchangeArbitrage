@@ -63,6 +63,30 @@ async def test_raises_when_fewer_than_two_exchanges_survive():
         await main.connect_with_retries(scanner, attempts=2, delay_seconds=0)
 
 
+async def test_select_top_movers_picks_most_volatile():
+    class MoverClient(FakeClient):
+        def __init__(self, exchange_id, percentages):
+            super().__init__(exchange_id)
+            self._percentages = percentages
+
+        async def fetch_ticker(self, symbol):
+            return {"last": 100.0, "percentage": self._percentages.get(symbol)}
+
+    pairs = ["BTC/USDT", "ETH/USDT", "DOGE/USDT", "SHIB/USDT"]
+    a = MoverClient("a", {"BTC/USDT": 0.5, "ETH/USDT": 1.0, "DOGE/USDT": 8.0, "SHIB/USDT": 12.0})
+    b = MoverClient("b", {"BTC/USDT": 0.4, "ETH/USDT": 3.0, "DOGE/USDT": 2.0, "SHIB/USDT": 11.0})
+    movers = await main.select_top_movers({"a": a, "b": b}, pairs, 2)
+    # SHIB (max ~12) and DOGE (max ~8) are the most volatile.
+    assert movers == ["SHIB/USDT", "DOGE/USDT"]
+
+
+async def test_select_top_movers_falls_back_when_no_data():
+    a = FakeClient("a", ticker_error=ConnectionError("down"))
+    pairs = ["BTC/USDT", "ETH/USDT"]
+    movers = await main.select_top_movers({"a": a}, pairs, 1)
+    assert movers == pairs  # no 24h data -> keep all
+
+
 async def test_auth_failure_is_dropped_immediately_without_retries():
     a = FakeClient("a")
     b = FakeClient("b")
