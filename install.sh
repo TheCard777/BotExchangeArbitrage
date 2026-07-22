@@ -4,6 +4,22 @@ trap 'echo ""; read -p "Appuie sur Entree pour fermer cette fenetre..." _' EXIT
 
 cd "$(dirname "$0")"
 
+# Guard against the most common mistake: running install.sh from INSIDE the
+# zip/rar archive (WinRAR extracts just this one file to a temp folder). If the
+# bot's files aren't next to this script, tell the user to extract first.
+if [ ! -f requirements.txt ] || [ ! -f setup_wizard.py ]; then
+  echo "======================================================================"
+  echo "  Il manque des fichiers du bot dans ce dossier."
+  echo ""
+  echo "  Tu as probablement lance install.sh SANS decompresser l'archive."
+  echo ""
+  echo "  -> Clic droit sur le fichier .zip / .rar recu -> \"Extraire tout\""
+  echo "     (Extract all). Ouvre le dossier extrait, PUIS lance install.sh"
+  echo "     depuis CE dossier-la."
+  echo "======================================================================"
+  exit 1
+fi
+
 PYTHON_BIN=""
 for candidate in python3 python; do
   if command -v "$candidate" >/dev/null 2>&1; then
