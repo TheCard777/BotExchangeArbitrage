@@ -10,6 +10,12 @@ automatiquement les écarts de prix rentables.
 
 ## Démarrage rapide (débutants)
 
+> ⚠️ **Étape 0 — décompresse d'abord l'archive !** Clic droit sur le fichier
+> `.zip` / `.rar` reçu → **« Extraire tout »** (Extract all), puis ouvre le
+> dossier extrait et travaille **depuis là**. **Ne lance jamais `install.sh`
+> directement depuis l'archive** (WinRAR/l'aperçu) : il manquerait les autres
+> fichiers et l'installation échouerait.
+
 1. **Installer** (crée l'environnement et installe tout automatiquement) :
 
    ```bash

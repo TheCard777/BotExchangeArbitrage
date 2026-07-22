@@ -20,7 +20,14 @@ surveilles, et lui exécute quand c'est rentable.
 
 ## 2. Installer et lancer (mode démonstration, sans risque)
 
-1. Décompresse le dossier du bot dans un endroit simple (ex. le Bureau).
+1. **Décompresse d'abord l'archive** : clic droit sur le fichier `.zip`/`.rar`
+   reçu → **« Extraire tout »** (Extract all), dans un endroit simple (ex. le
+   Bureau). Ouvre ensuite le **dossier extrait**.
+   > ⚠️ **Ne lance JAMAIS `install.sh` directement depuis l'archive** (en
+   > double-cliquant dedans dans WinRAR) : il manquerait les autres fichiers
+   > du bot et l'installation échouerait avec une erreur `requirements.txt`.
+   > Il faut toujours **extraire d'abord**, puis travailler dans le dossier.
+   >
    > Astuce : ne garde qu'**une seule** copie du dossier, pour ne pas lancer
    > par erreur une vieille version.
 2. **Ouvre un terminal selon ton système :**
