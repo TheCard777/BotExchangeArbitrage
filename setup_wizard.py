@@ -40,6 +40,8 @@ POPULAR_PAIRS = [
 ]
 # A broader-than-BTC/ETH default so the bot has a real chance of finding a gap.
 DEFAULT_PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "DOGE/USDT"]
+# In fully automatic mode, how many of the most volatile pairs the bot follows.
+AUTO_TOP_MOVERS = 8
 LIVE_CONFIRM_PHRASE = "ACTIVER"
 
 CONFIG_TEMPLATE = """\
@@ -237,8 +239,25 @@ def choose_top_movers(num_pairs: int) -> int:
     print("reajuster tout seul pendant qu'il tourne.")
     answer = ask("Activer ce mode automatique ? (o/n)", "o")
     if answer.strip().lower() in ("o", "oui", "y", "yes"):
-        return min(8, num_pairs)  # follow the 8 most volatile
+        return min(AUTO_TOP_MOVERS, num_pairs)  # follow the most volatile
     return 0
+
+
+def choose_pairs_and_focus() -> tuple[list[str], int]:
+    """Ask how to pick pairs. Fully automatic (watch a broad selection and
+    auto-focus on the most volatile) or manual. Returns (pairs, top_movers)."""
+    print()
+    print("Comment veux-tu choisir les paires a surveiller ?")
+    print("  1. Automatique (recommande) : le bot surveille une large selection")
+    print("     et se concentre tout seul sur les paires les plus volatiles.")
+    print("  2. Je choisis mes propres paires.")
+    choice = ask_choice("Ton choix", ["1", "2"], default_index=0)
+    if choice == "1":
+        # Whole popular list as the universe; the bot auto-focuses on the
+        # AUTO_TOP_MOVERS most volatile and re-adjusts while running.
+        return list(POPULAR_PAIRS), AUTO_TOP_MOVERS
+    pairs = choose_pairs()
+    return pairs, choose_top_movers(len(pairs))
 
 
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
@@ -312,8 +331,7 @@ def main() -> None:
     mode = ask_choice("Ton choix", ["1", "2"], default_index=0)
 
     exchanges = choose_exchanges()
-    pairs = choose_pairs()
-    top_movers = choose_top_movers(len(pairs))
+    pairs, top_movers = choose_pairs_and_focus()
 
     if mode == "1":
         keys = {eid: ("", "", "") for eid in exchanges}

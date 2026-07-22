@@ -37,6 +37,24 @@ def test_pairs_empty_is_none():
     assert parse_pair_selection("") is None
 
 
+def test_automatic_mode_watches_all_popular_and_auto_focuses(monkeypatch):
+    # User picks option "1" (Automatic): universe = all popular pairs, and
+    # top_movers is enabled without them having to type "tous" or a number.
+    monkeypatch.setattr(setup_wizard, "ask_choice", lambda *a, **k: "1")
+    pairs, top_movers = setup_wizard.choose_pairs_and_focus()
+    assert pairs == setup_wizard.POPULAR_PAIRS
+    assert top_movers == setup_wizard.AUTO_TOP_MOVERS
+
+
+def test_manual_mode_uses_chosen_pairs(monkeypatch):
+    monkeypatch.setattr(setup_wizard, "ask_choice", lambda *a, **k: "2")
+    monkeypatch.setattr(setup_wizard, "choose_pairs", lambda: ["BTC/USDT", "ETH/USDT"])
+    monkeypatch.setattr(setup_wizard, "choose_top_movers", lambda n: 0)
+    pairs, top_movers = setup_wizard.choose_pairs_and_focus()
+    assert pairs == ["BTC/USDT", "ETH/USDT"]
+    assert top_movers == 0
+
+
 def test_choose_top_movers_yes_enables_automatic(monkeypatch):
     monkeypatch.setattr(setup_wizard, "ask", lambda *a, **k: "o")
     assert setup_wizard.choose_top_movers(19) == 8  # follows the 8 most volatile
