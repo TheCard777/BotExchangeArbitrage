@@ -6,7 +6,42 @@ the user discovering it when the bot won't start.
 """
 import setup_wizard
 from bot.config import load_config
-from setup_wizard import parse_exchange_selection
+from setup_wizard import parse_exchange_selection, parse_pair_selection
+
+
+def test_pairs_select_by_numbers():
+    assert parse_pair_selection("1,2") == ["BTC/USDT", "ETH/USDT"]
+
+
+def test_pairs_select_by_range():
+    assert parse_pair_selection("1-3") == ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+
+
+def test_pairs_select_all():
+    assert parse_pair_selection("tous") == setup_wizard.POPULAR_PAIRS
+
+
+def test_pairs_custom_typed():
+    assert parse_pair_selection("btc/usdt, sol/usdt") == ["BTC/USDT", "SOL/USDT"]
+
+
+def test_pairs_custom_invalid_format():
+    assert parse_pair_selection("BTCUSDT") is None
+
+
+def test_pairs_number_out_of_range():
+    assert parse_pair_selection("999") is None
+
+
+def test_pairs_empty_is_none():
+    assert parse_pair_selection("") is None
+
+
+def test_default_pairs_are_valid_and_broad():
+    # More than just BTC/ETH, and all well-formed.
+    assert len(setup_wizard.DEFAULT_PAIRS) >= 3
+    for pair in setup_wizard.DEFAULT_PAIRS:
+        assert len(pair.split("/")) == 2
 
 
 def test_select_multiple_by_comma():

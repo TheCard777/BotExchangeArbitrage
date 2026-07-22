@@ -178,8 +178,27 @@ Tu peux ouvrir `config.yaml` avec un éditeur de texte pour ajuster :
 
 Après modification, relance `start.sh`.
 
-> **Choisir plusieurs exchanges d'un coup** : dans l'assistant, tu peux taper
-> plusieurs numéros (`1,2,5`), une plage (`1-4`), ou simplement **`tous`**.
+> **Choisir plusieurs exchanges/paires d'un coup** : dans l'assistant, tu peux
+> taper plusieurs numéros (`1,2,5`), une plage (`1-4`), ou simplement **`tous`**.
+
+### Le bot ne trouve « aucun écart » ? C'est normal — voici comment en voir plus
+
+Par défaut le bot surveille surtout **BTC et ETH**, les paires les plus
+liquides… donc celles où les écarts sont les plus petits et disparaissent le
+plus vite. Pour trouver plus d'opportunités :
+
+1. **Surveille plus de paires**, surtout des altcoins moyens (SOL, XRP, DOGE,
+   AVAX, LINK…). Relance `./install.sh` et choisis-en plusieurs (ou `tous`).
+   Les écarts y sont souvent plus grands et plus fréquents.
+2. **Utilise plus d'exchanges** (3-4) : plus de combinaisons = plus de chances.
+3. **Baisse `min_profit_threshold`** (ex. `0.002`) pour voir les écarts plus
+   petits.
+
+⚠️ **Honnêteté** : sur les paires peu liquides, un « gros écart » affiché peut
+être trompeur — le prix peut être figé/ancien et **non exécutable** réellement
+(le bot compare le dernier prix, pas la profondeur du carnet d'ordres). Plus de
+paires = plus de choses à **observer**, mais pas forcément plus de profit réel.
+Le contrôle de slippage annulera un trade si l'écart n'est plus là à l'exécution.
 
 ---
 

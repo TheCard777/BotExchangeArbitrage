@@ -28,7 +28,16 @@ SUPPORTED_EXCHANGES = [
     ("bingx", "BingX"),
 ]
 
-DEFAULT_PAIRS = ["BTC/USDT", "ETH/USDT"]
+# Popular pairs, broadly listed across the major exchanges. The mid-cap alts
+# (SOL, XRP, DOGE, AVAX...) tend to show bigger and more frequent cross-exchange
+# spreads than BTC/ETH, which are so liquid that gaps close instantly.
+POPULAR_PAIRS = [
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT",
+    "AVAX/USDT", "LINK/USDT", "DOT/USDT", "LTC/USDT", "ATOM/USDT", "TRX/USDT",
+    "BCH/USDT", "XLM/USDT", "NEAR/USDT", "UNI/USDT",
+]
+# A broader-than-BTC/ETH default so the bot has a real chance of finding a gap.
+DEFAULT_PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "DOGE/USDT"]
 LIVE_CONFIRM_PHRASE = "ACTIVER"
 
 CONFIG_TEMPLATE = """\
@@ -153,21 +162,62 @@ def choose_exchanges() -> list[str]:
         return selected
 
 
+def parse_pair_selection(raw: str) -> list[str] | None:
+    """Turn the user's answer into a list of pairs, or None if invalid.
+
+    Accepts numbers/ranges into POPULAR_PAIRS ("1,3,5" / "1-8"), the shortcut
+    "tous"/"all", or custom pairs typed directly ("BTC/USDT,SOL/USDT").
+    """
+    answer = raw.strip().lower()
+    if not answer:
+        return None
+    if answer in ("tous", "toutes", "all", "*"):
+        return list(POPULAR_PAIRS)
+
+    if "/" in raw:  # user typed their own pairs
+        pairs = [p.strip().upper() for p in raw.replace(";", ",").split(",") if p.strip()]
+        invalid = [p for p in pairs if len(p.split("/")) != 2 or not all(p.split("/"))]
+        if invalid or not pairs:
+            return None
+        return list(dict.fromkeys(pairs))
+
+    indices: list[int] = []
+    for part in answer.replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            try:
+                start, end = (int(x) for x in part.split("-", 1))
+            except ValueError:
+                return None
+            indices.extend(range(start, end + 1))
+        else:
+            try:
+                indices.append(int(part))
+            except ValueError:
+                return None
+    if not indices or any(i < 1 or i > len(POPULAR_PAIRS) for i in indices):
+        return None
+    return [POPULAR_PAIRS[i - 1] for i in dict.fromkeys(indices)]
+
+
 def choose_pairs() -> list[str]:
     print()
-    print(f"Paires a surveiller par defaut : {', '.join(DEFAULT_PAIRS)}")
+    print("Paires populaires (plus tu en surveilles, plus tu as de chances de trouver un ecart) :")
+    for i, pair in enumerate(POPULAR_PAIRS, start=1):
+        print(f"  {i}. {pair}")
+    print()
+    print(f"Par defaut : {', '.join(DEFAULT_PAIRS)}")
+    print("Astuce : tape des numeros (1,3,5), une plage (1-8), 'tous', ou tes")
+    print("propres paires (BTC/USDT,SOL/USDT). Entree = defaut.")
     while True:
-        raw = ask(
-            "Appuie sur Entree pour garder ce choix, ou tape tes paires separees par des virgules"
-            " (ex: BTC/USDT,SOL/USDT)",
-            ",".join(DEFAULT_PAIRS),
-        )
-        pairs = [p.strip().upper() for p in raw.split(",") if p.strip()]
-        invalid = [p for p in pairs if len(p.split("/")) != 2 or not all(p.split("/"))]
-        if invalid:
-            print(f"  -> format invalide : {', '.join(invalid)}. Utilise BASE/COTATION, ex: BTC/USDT")
+        raw = ask("Ton choix", ",".join(DEFAULT_PAIRS))
+        selected = parse_pair_selection(raw)
+        if selected is None:
+            print("  -> format invalide. Ex: 1,3,5  |  1-8  |  tous  |  BTC/USDT,SOL/USDT")
             continue
-        return pairs
+        return selected
 
 
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
