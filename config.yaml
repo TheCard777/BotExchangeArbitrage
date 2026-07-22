@@ -36,8 +36,9 @@ request_timeout_seconds: 60
 #                    (utile si ta connexion est trop instable pour le WebSocket).
 realtime: true
 
-# top_movers: N -> le bot se concentre sur les N paires les PLUS VOLATILES
-# parmi celles ci-dessus (souvent plus d'ecarts). 0 = surveiller toutes.
+# top_movers: N -> mode automatique : le bot suit les N paires les PLUS
+# VOLATILES parmi celles ci-dessus (souvent plus d'ecarts) et se reajuste
+# tout seul toutes les 15 min. 0 = surveiller toutes les paires.
 top_movers: 0
 
 logging:

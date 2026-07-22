@@ -20,6 +20,9 @@ from bot.scanner import ArbitrageScanner
 
 logger = logging.getLogger("arbitrage.main")
 
+# How often the automatic top-movers mode re-picks the most volatile pairs.
+TOP_MOVERS_REFRESH_SECONDS = 900  # 15 minutes
+
 
 # A few independent, highly-reliable endpoints. We try several so one blocked
 # or slow host (some networks block specific domains) can't produce a false
@@ -226,15 +229,18 @@ async def run() -> None:
             "(et coupe ton VPN si tu en as un), puis relance ./start.sh."
         ) from None
 
-    # Optional: focus on the most volatile pairs (where spreads are widest).
-    if config.top_movers and config.top_movers < len(scanner.pairs):
-        movers = await select_top_movers(scanner.clients, scanner.pairs, config.top_movers)
+    # Top-movers mode: the full configured list is the "universe"; the bot
+    # automatically focuses on the most volatile pairs from it, and re-picks
+    # them periodically while running (see the loop below).
+    universe = list(scanner.pairs)
+    top_movers_on = bool(config.top_movers) and config.top_movers < len(universe)
+    if top_movers_on:
+        scanner.pairs = await select_top_movers(scanner.clients, universe, config.top_movers)
         logger.info(
-            "Top movers — le bot se concentre sur les %d paires les plus volatiles : %s",
-            len(movers),
-            ", ".join(movers),
+            "Mode automatique top-movers — le bot suit les %d paires les plus volatiles : %s",
+            len(scanner.pairs),
+            ", ".join(scanner.pairs),
         )
-        scanner.pairs = movers
 
     # Real-time mode: stream prices over WebSocket from the surviving exchanges
     # and scan the live cache fast. Falls back to REST polling if disabled.
@@ -258,9 +264,25 @@ async def run() -> None:
 
     heartbeat_every = 10.0  # seconds between heartbeat log lines
     last_heartbeat = 0.0
+    last_movers_refresh = loop.time()
 
     try:
         while not stop_event.is_set():
+            # Automatic top-movers refresh: periodically re-pick the most
+            # volatile pairs from the universe and re-point the feed at them, so
+            # the bot follows the market on its own without any manual change.
+            if top_movers_on and loop.time() - last_movers_refresh >= TOP_MOVERS_REFRESH_SECONDS:
+                last_movers_refresh = loop.time()
+                new_pairs = await select_top_movers(scanner.clients, universe, config.top_movers)
+                if set(new_pairs) != set(scanner.pairs):
+                    logger.info("Top-movers reajustes automatiquement : %s", ", ".join(new_pairs))
+                    scanner.pairs = new_pairs
+                    if price_feed is not None:
+                        await price_feed.stop()
+                        price_feed = RealtimePriceFeed(scanner.clients, new_pairs)
+                        price_feed.start()
+                        scanner.price_feed = price_feed
+
             try:
                 opportunities = await scanner.scan()
             except Exception:

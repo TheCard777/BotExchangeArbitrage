@@ -78,8 +78,9 @@ request_timeout_seconds: 60
 # realtime: false -> scan REST toutes les scan_interval_seconds (connexion instable).
 realtime: true
 
-# top_movers: N -> le bot se concentre sur les N paires les PLUS VOLATILES
-# parmi celles ci-dessus (souvent plus d'ecarts). 0 = surveiller toutes.
+# top_movers: N -> mode automatique : le bot suit les N paires les PLUS
+# VOLATILES parmi celles ci-dessus (souvent plus d'ecarts) et se reajuste
+# tout seul toutes les 15 min. 0 = surveiller toutes les paires.
 top_movers: {top_movers}
 
 logging:
@@ -227,23 +228,17 @@ def choose_pairs() -> list[str]:
 
 
 def choose_top_movers(num_pairs: int) -> int:
+    # With only a few pairs there's nothing to narrow down.
+    if num_pairs <= 3:
+        return 0
     print()
-    print("Le bot peut se concentrer automatiquement sur les paires les plus")
-    print("VOLATILES du moment (souvent la ou il y a le plus d'ecarts).")
-    while True:
-        raw = ask(
-            f"Combien de paires les plus volatiles garder ? (0 = surveiller tes {num_pairs} paires)",
-            "0",
-        )
-        try:
-            count = int(raw)
-        except ValueError:
-            print("  -> entre un nombre entier (0 pour toutes)")
-            continue
-        if count < 0:
-            print("  -> entre 0 ou un nombre positif")
-            continue
-        return count
+    print("Le bot peut se concentrer AUTOMATIQUEMENT sur les paires les plus")
+    print("VOLATILES du moment (souvent la ou il y a le plus d'ecarts), et se")
+    print("reajuster tout seul pendant qu'il tourne.")
+    answer = ask("Activer ce mode automatique ? (o/n)", "o")
+    if answer.strip().lower() in ("o", "oui", "y", "yes"):
+        return min(8, num_pairs)  # follow the 8 most volatile
+    return 0
 
 
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:

@@ -37,6 +37,21 @@ def test_pairs_empty_is_none():
     assert parse_pair_selection("") is None
 
 
+def test_choose_top_movers_yes_enables_automatic(monkeypatch):
+    monkeypatch.setattr(setup_wizard, "ask", lambda *a, **k: "o")
+    assert setup_wizard.choose_top_movers(19) == 8  # follows the 8 most volatile
+
+
+def test_choose_top_movers_no_keeps_all(monkeypatch):
+    monkeypatch.setattr(setup_wizard, "ask", lambda *a, **k: "n")
+    assert setup_wizard.choose_top_movers(19) == 0
+
+
+def test_choose_top_movers_skips_when_few_pairs():
+    # 3 or fewer pairs: nothing to narrow, no question asked.
+    assert setup_wizard.choose_top_movers(3) == 0
+
+
 def test_default_pairs_are_valid_and_broad():
     # More than just BTC/ETH, and all well-formed.
     assert len(setup_wizard.DEFAULT_PAIRS) >= 3
