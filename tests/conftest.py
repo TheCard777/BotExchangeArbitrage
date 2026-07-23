@@ -16,6 +16,9 @@ class FakeClient:
         load_error: Exception | None = None,
         ticker_error: Exception | None = None,
         order_error: Exception | None = None,
+        amount_precision: int | None = None,
+        min_amount: float | None = None,
+        min_cost: float | None = None,
     ):
         self.id = exchange_id
         self._prices = prices or {}
@@ -24,9 +27,25 @@ class FakeClient:
         self._load_error = load_error
         self._ticker_error = ticker_error
         self._order_error = order_error
+        self._amount_precision = amount_precision
+        self._min_amount = min_amount
+        self._min_cost = min_cost
         self.closed = False
         self.orders: list[tuple] = []
         self.load_attempts = 0
+
+    def amount_to_precision(self, symbol: str, amount: float) -> float:
+        # By default no rounding, so existing exact-amount tests are unaffected.
+        if self._amount_precision is None:
+            return float(amount)
+        factor = 10 ** self._amount_precision
+        return int(float(amount) * factor) / factor  # truncate, like ccxt
+
+    def min_amount(self, symbol: str):
+        return self._min_amount
+
+    def min_cost(self, symbol: str):
+        return self._min_cost
 
     async def load_markets(self):
         self.load_attempts += 1

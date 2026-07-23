@@ -44,6 +44,13 @@ class TradeExecutor:
         trade_size_quote = await self._size_trade(opportunity, base, quote, buy_client, sell_client)
         amount = trade_size_quote / opportunity.buy_price
 
+        # Round to a quantity valid on BOTH exchanges (double-rounding gives a
+        # value both accept), then check each exchange's minimums — so a real
+        # order is never rejected for bad precision or being too small.
+        amount = buy_client.amount_to_precision(opportunity.pair, amount)
+        amount = sell_client.amount_to_precision(opportunity.pair, amount)
+        self._check_order_minimums(opportunity, amount, buy_client, sell_client)
+
         await self._check_slippage(opportunity, buy_client, sell_client)
 
         logger.info(
@@ -93,6 +100,33 @@ class TradeExecutor:
                 f"{base_free:.6f} {base} on {opportunity.sell_exchange}"
             )
         return trade_size_quote
+
+    def _check_order_minimums(
+        self,
+        opportunity: Opportunity,
+        amount: float,
+        buy_client: ExchangeClient,
+        sell_client: ExchangeClient,
+    ) -> None:
+        if amount <= 0:
+            raise TradeAborted(
+                f"Montant nul pour {opportunity.pair} apres arrondi a la precision de l'exchange "
+                "(trade trop petit)."
+            )
+        for client, price, name in (
+            (buy_client, opportunity.buy_price, opportunity.buy_exchange),
+            (sell_client, opportunity.sell_price, opportunity.sell_exchange),
+        ):
+            min_amount = client.min_amount(opportunity.pair)
+            if min_amount and amount < min_amount:
+                raise TradeAborted(
+                    f"Montant {amount} sous le minimum {min_amount} sur {name} pour {opportunity.pair}."
+                )
+            min_cost = client.min_cost(opportunity.pair)
+            if min_cost and amount * price < min_cost:
+                raise TradeAborted(
+                    f"Valeur du trade ({amount * price:.2f}) sous le minimum {min_cost} sur {name}."
+                )
 
     async def _check_slippage(
         self, opportunity: Opportunity, buy_client: ExchangeClient, sell_client: ExchangeClient

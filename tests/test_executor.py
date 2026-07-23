@@ -105,6 +105,45 @@ async def test_aborts_when_slippage_too_high():
     assert sell.orders == []
 
 
+async def test_amount_is_rounded_to_exchange_precision():
+    # buy exchange allows 3 decimals, sell allows 2 -> order amount uses 2.
+    buy = FakeClient(
+        "a", prices={"BTC/USDT": 100.0}, balance={"USDT": {"free": 1000.0}}, amount_precision=3
+    )
+    sell = FakeClient(
+        "b", prices={"BTC/USDT": 105.0}, balance={"BTC": {"free": 10.0}}, amount_precision=2
+    )
+    executor = TradeExecutor({"a": buy, "b": sell}, make_config(max_trade_size_quote=55.5))
+    await executor.execute(make_opportunity())
+    # 55.5 / 100 = 0.555 -> rounded to 2 decimals -> 0.55
+    assert buy.orders == [("BTC/USDT", "buy", 0.55)]
+    assert sell.orders == [("BTC/USDT", "sell", 0.55)]
+
+
+async def test_aborts_when_below_min_amount():
+    buy = FakeClient(
+        "a", prices={"BTC/USDT": 100.0}, balance={"USDT": {"free": 1000.0}}, min_amount=1.0
+    )
+    sell = FakeClient("b", prices={"BTC/USDT": 105.0}, balance={"BTC": {"free": 10.0}})
+    executor = TradeExecutor({"a": buy, "b": sell}, make_config(max_trade_size_quote=50.0))
+    # 50/100 = 0.5 BTC < min 1.0 -> abort, no order.
+    with pytest.raises(TradeAborted, match="sous le minimum"):
+        await executor.execute(make_opportunity())
+    assert buy.orders == []
+
+
+async def test_aborts_when_below_min_cost():
+    buy = FakeClient(
+        "a", prices={"BTC/USDT": 100.0}, balance={"USDT": {"free": 1000.0}}, min_cost=100.0
+    )
+    sell = FakeClient("b", prices={"BTC/USDT": 105.0}, balance={"BTC": {"free": 10.0}})
+    executor = TradeExecutor({"a": buy, "b": sell}, make_config(max_trade_size_quote=50.0))
+    # 0.5 BTC * 100 = 50 quote < min cost 100 -> abort.
+    with pytest.raises(TradeAborted, match="sous le minimum"):
+        await executor.execute(make_opportunity())
+    assert buy.orders == []
+
+
 async def test_aborts_cleanly_when_fresh_price_missing():
     # Exchange returns a ticker with no usable 'last' price at slippage-check
     # time -> clean TradeAborted, never a raw crash, and no orders placed.

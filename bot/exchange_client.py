@@ -89,6 +89,28 @@ class ExchangeClient:
         market = self.exchange.markets.get(symbol, {})
         return market.get("taker", 0.001)
 
+    def amount_to_precision(self, symbol: str, amount: float) -> float:
+        """Round an order quantity to this exchange's allowed precision so the
+        order isn't rejected for having too many decimals. Safe fallback to the
+        raw amount if precision info isn't available."""
+        try:
+            return float(self.exchange.amount_to_precision(symbol, amount))
+        except Exception:
+            return float(amount)
+
+    def _limit(self, symbol: str, kind: str) -> float | None:
+        market = self.exchange.markets.get(symbol, {}) or {}
+        limits = market.get("limits", {}) or {}
+        return (limits.get(kind, {}) or {}).get("min")
+
+    def min_amount(self, symbol: str) -> float | None:
+        """Smallest order quantity the exchange accepts for this pair (or None)."""
+        return self._limit(symbol, "amount")
+
+    def min_cost(self, symbol: str) -> float | None:
+        """Smallest order value (amount x price) the exchange accepts (or None)."""
+        return self._limit(symbol, "cost")
+
     async def fetch_ticker(self, symbol: str):
         return await self.exchange.fetch_ticker(symbol)
 

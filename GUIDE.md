@@ -137,7 +137,10 @@ Quand le bot trouve un écart > seuil, il fait, **en même temps** :
 
 Avant d'agir, il vérifie :
 - que tu as **assez de solde** des deux côtés ;
-- que l'écart est **toujours là** (contrôle de « slippage ») — sinon il annule.
+- que l'écart est **toujours là** (contrôle de « slippage ») — sinon il annule ;
+- il **arrondit la quantité** à la précision de chaque exchange et vérifie les
+  **montants minimums** — si c'est trop petit, il annule proprement au lieu
+  d'envoyer un ordre qui serait refusé.
 
 Le profit = différence de prix − frais des deux exchanges.
 
