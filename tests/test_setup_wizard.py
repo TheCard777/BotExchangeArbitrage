@@ -70,6 +70,31 @@ def test_choose_top_movers_skips_when_few_pairs():
     assert setup_wizard.choose_top_movers(3) == 0
 
 
+def test_read_secret_uses_visible_input_in_git_bash(monkeypatch):
+    monkeypatch.setenv("MSYSTEM", "MINGW64")
+    monkeypatch.setattr("builtins.input", lambda prompt="": "  mykey  ")
+    # Must NOT call getpass (broken in Git Bash) — use input and strip.
+    monkeypatch.setattr(
+        setup_wizard.getpass, "getpass", lambda *a, **k: (_ for _ in ()).throw(AssertionError("getpass used"))
+    )
+    assert setup_wizard.read_secret("Cle : ") == "mykey"
+
+
+def test_read_secret_uses_getpass_outside_git_bash(monkeypatch):
+    monkeypatch.delenv("MSYSTEM", raising=False)
+    monkeypatch.setattr(setup_wizard.getpass, "getpass", lambda *a, **k: "  secret  ")
+    assert setup_wizard.read_secret("Cle : ") == "secret"
+
+
+def test_read_secret_falls_back_to_input_if_getpass_fails(monkeypatch):
+    monkeypatch.delenv("MSYSTEM", raising=False)
+    monkeypatch.setattr(
+        setup_wizard.getpass, "getpass", lambda *a, **k: (_ for _ in ()).throw(OSError("no tty"))
+    )
+    monkeypatch.setattr("builtins.input", lambda prompt="": "typed")
+    assert setup_wizard.read_secret("Cle : ") == "typed"
+
+
 def test_default_pairs_are_valid_and_broad():
     # More than just BTC/ETH, and all well-formed.
     assert len(setup_wizard.DEFAULT_PAIRS) >= 3

@@ -6,9 +6,35 @@ for you — no manual file editing required. Safe to re-run at any time.
 from __future__ import annotations
 
 import getpass
+import os
 from pathlib import Path
 
 from bot.config import PASSPHRASE_EXCHANGES
+
+
+def _in_git_bash() -> bool:
+    # Git Bash / MSYS sets MSYSTEM (e.g. MINGW64). getpass's masked input is
+    # unreliable there (it can look frozen or crash with KeyboardInterrupt).
+    return bool(os.environ.get("MSYSTEM"))
+
+
+def read_secret(prompt: str) -> str:
+    """Read an API key/secret. Uses masked input where it works; in Git Bash on
+    Windows (where masked input is broken) falls back to a normal visible input
+    so the user can actually type — on your own machine that's an acceptable
+    trade-off, and far better than a frozen or crashing prompt."""
+    if _in_git_bash():
+        try:
+            return input(prompt).strip()
+        except EOFError:
+            return ""
+    try:
+        return getpass.getpass(prompt).strip()
+    except Exception:  # masked input not supported on this terminal
+        try:
+            return input(prompt).strip()
+        except EOFError:
+            return ""
 
 ROOT_DIR = Path(__file__).resolve().parent
 
@@ -263,20 +289,26 @@ def choose_pairs_and_focus() -> tuple[list[str], int]:
 def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
     print()
     print("Pour chaque exchange, entre une cle API avec les droits de")
-    print("TRADING uniquement (jamais de droit de retrait). La saisie est masquee.")
+    print("TRADING uniquement (jamais de droit de retrait).")
+    if _in_git_bash():
+        print("Astuce : ta saisie sera VISIBLE a l'ecran ici (Git Bash) — c'est normal.")
+    else:
+        print("Astuce : ta saisie est INVISIBLE (rien ne s'affiche quand tu tapes),")
+        print("c'est normal, c'est pour proteger ta cle. Colle ta cle, puis Entree.")
+    print("Laisse vide et appuie sur Entree pour passer un exchange.")
     print()
     keys = {}
     for exchange_id in exchanges:
         label = dict((eid, name) for eid, name in SUPPORTED_EXCHANGES)[exchange_id]
         print(f"-- {label} --")
-        api_key = getpass.getpass(f"  Cle API {label} (laisser vide pour passer) : ").strip()
+        api_key = read_secret(f"  Cle API {label} (laisser vide pour passer) : ")
         api_secret = ""
         passphrase = ""
         if api_key:
-            api_secret = getpass.getpass(f"  Secret API {label} : ").strip()
+            api_secret = read_secret(f"  Secret API {label} : ")
             if exchange_id in PASSPHRASE_EXCHANGES:
-                # KuCoin/OKX ask for a passphrase when you create the key.
-                passphrase = getpass.getpass(f"  Passphrase API {label} : ").strip()
+                # KuCoin/OKX/Bitget ask for a passphrase when you create the key.
+                passphrase = read_secret(f"  Passphrase API {label} : ")
         keys[exchange_id] = (api_key, api_secret, passphrase)
     return keys
 

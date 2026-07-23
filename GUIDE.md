@@ -141,6 +141,31 @@ Avant d'agir, il vérifie :
 
 Le profit = différence de prix − frais des deux exchanges.
 
+### « Mais il envoie l'argent d'un exchange à l'autre comment ? » → il n'envoie RIEN
+
+C'est le point qui trouble tout le monde. **Aucun argent ne circule entre les
+deux exchanges.** L'argent est déjà présent des deux côtés, et chaque ordre se
+fait localement, sur son propre exchange.
+
+**L'image des 2 poches :** tu as 100 € en billets dans la poche gauche, et un
+objet valant ~100 € dans la poche droite. Dans un magasin l'objet est moins
+cher, dans un autre il est plus cher. Tu **achètes** le pas cher avec les
+billets de gauche, et tu **vends** l'objet que tu avais déjà à droite là où
+c'est cher. Tu n'as **rien déplacé** entre tes poches — tu as juste utilisé ce
+qui était déjà dans chacune, et tu gardes la différence de prix.
+
+**En chiffres :** au départ Binance = 100 USDT + 0,001 BTC, Kraken = 100 USDT +
+0,001 BTC. Le BTC vaut 100 000 sur Binance, 101 000 sur Kraken. Le bot achète
+0,001 BTC sur Binance (avec l'USDT déjà là) et vend 0,001 BTC sur Kraken (avec
+le BTC déjà là). Résultat : Binance = 0 USDT + 0,002 BTC, Kraken = 201 USDT + 0
+BTC. **Profit ≈ 1 USDT, zéro transfert.**
+
+C'est pour ça qu'il faut **financer les deux exchanges à l'avance** (un peu
+d'USDT ET un peu de crypto sur chacun) : un transfert de crypto prendrait
+plusieurs minutes, et l'écart aurait déjà disparu. De temps en temps, si un
+côté se vide à force de trader dans le même sens, tu **rééquilibres à la main**
+(le bot ne le fait pas tout seul).
+
 ---
 
 ## 6. À lire absolument (la réalité, sans enrobage)
