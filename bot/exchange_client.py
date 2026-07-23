@@ -77,6 +77,14 @@ class ExchangeClient:
                 return await self.exchange.load_markets()
             raise
 
+    def has_market(self, symbol: str) -> bool:
+        """True if this exchange lists the pair. Falls back to True when markets
+        aren't loaded yet, so we never wrongly hide a pair before connecting."""
+        markets = getattr(self.exchange, "markets", None)
+        if not markets:
+            return True
+        return symbol in markets
+
     def taker_fee(self, symbol: str) -> float:
         market = self.exchange.markets.get(symbol, {})
         return market.get("taker", 0.001)

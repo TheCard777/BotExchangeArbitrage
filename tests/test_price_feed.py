@@ -69,6 +69,47 @@ async def test_stop_cancels_all_tasks():
     assert all(t.done() for t in feed._tasks) or feed._tasks == []
 
 
+async def test_skips_pairs_the_exchange_does_not_list():
+    class MarketAwareClient(FakeWSClient):
+        def __init__(self, exchange_id, price, listed):
+            super().__init__(exchange_id, price)
+            self._listed = set(listed)
+
+        def has_market(self, symbol):
+            return symbol in self._listed
+
+    # 'a' lists only BTC; XLM must not be watched at all on it.
+    a = MarketAwareClient("a", 100.0, listed={"BTC/USDT"})
+    feed = RealtimePriceFeed({"a": a}, ["BTC/USDT", "XLM/USDT"])
+    feed.start()
+    try:
+        await asyncio.sleep(0.03)
+        assert a.calls > 0  # watched BTC
+        # Only one task (BTC); XLM was skipped up front.
+        assert len(feed._tasks) == 1
+        assert "XLM/USDT" not in feed.snapshot().get("a", {})
+    finally:
+        await feed.stop()
+
+
+async def test_bad_symbol_stops_instead_of_reconnecting():
+    class BadSymbolClient(FakeWSClient):
+        async def watch_ticker(self, symbol):
+            self.calls += 1
+            raise Exception("kraken does not have market symbol XLM/USDT")
+
+    c = BadSymbolClient("kraken", 0.0)
+    feed = RealtimePriceFeed({"kraken": c}, ["XLM/USDT"], reconnect_delay=0.01)
+    feed.start()
+    try:
+        await asyncio.sleep(0.08)
+        # It must NOT keep retrying every reconnect_delay — one call, then stop.
+        assert c.calls == 1
+        assert feed._tasks[0].done()
+    finally:
+        await feed.stop()
+
+
 async def test_ignores_non_positive_prices():
     zero = FakeWSClient("zero", 0.0)
     feed = RealtimePriceFeed({"zero": zero}, ["BTC/USDT"])

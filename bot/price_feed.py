@@ -44,6 +44,13 @@ class RealtimePriceFeed:
             except (TypeError, ValueError):
                 continue
             except Exception as error:  # noqa: BLE001 — reconnect on any stream error
+                # A pair the exchange simply doesn't list will never recover, so
+                # stop instead of reconnecting forever (which spams the log).
+                text = f"{type(error).__name__}: {error}".lower()
+                if "badsymbol" in text or "does not have market" in text:
+                    logger.info("%s ne propose pas %s — paire ignoree.", exchange_id, pair)
+                    self.prices[exchange_id].pop(pair, None)
+                    return
                 _, reason = classify_error(error)
                 logger.warning(
                     "Flux temps reel %s %s interrompu — %s. Reconnexion dans %.0fs...",
@@ -59,17 +66,29 @@ class RealtimePriceFeed:
                 except asyncio.TimeoutError:
                     pass
 
+    @staticmethod
+    def _client_has_pair(client, pair: str) -> bool:
+        # Skip (exchange, pair) combos the exchange doesn't list, so we never
+        # open a doomed stream. Fakes without has_market are always watched.
+        has_market = getattr(client, "has_market", None)
+        return has_market(pair) if callable(has_market) else True
+
     def start(self) -> None:
-        """Launch one background streaming task per (exchange, pair)."""
+        """Launch one background streaming task per (exchange, pair) that the
+        exchange actually lists."""
+        watched = 0
         for exchange_id, client in self.clients.items():
             for pair in self.pairs:
+                if not self._client_has_pair(client, pair):
+                    continue
+                watched += 1
                 self._tasks.append(
                     asyncio.create_task(self._watch(exchange_id, client, pair))
                 )
         logger.info(
-            "Flux temps reel (WebSocket) demarre : %d exchange(s) x %d paire(s).",
+            "Flux temps reel (WebSocket) demarre : %d abonnement(s) sur %d exchange(s).",
+            watched,
             len(self.clients),
-            len(self.pairs),
         )
 
     def snapshot(self) -> dict[str, dict[str, float]]:
