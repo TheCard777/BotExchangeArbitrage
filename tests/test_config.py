@@ -107,6 +107,54 @@ def test_top_movers_rejects_negative(tmp_path):
         load_config(path)
 
 
+def test_rejects_negative_profit_threshold(tmp_path):
+    # A negative threshold in real mode would mean trading at a loss.
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        min_profit_threshold: -0.01
+        """,
+    )
+    with pytest.raises(ValueError, match="negatif"):
+        load_config(path)
+
+
+def test_rejects_garbage_slippage(tmp_path):
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        max_slippage: oops
+        """,
+    )
+    with pytest.raises(ValueError, match="doit etre un nombre"):
+        load_config(path)
+
+
+def test_zero_profit_threshold_is_allowed(tmp_path):
+    path = write_config(
+        tmp_path,
+        """
+        exchanges:
+          - binance
+          - kraken
+        pairs:
+          - BTC/USDT
+        min_profit_threshold: 0
+        """,
+    )
+    assert load_config(path).min_profit_threshold == 0.0
+
+
 def test_realtime_can_be_disabled(tmp_path):
     path = write_config(
         tmp_path,

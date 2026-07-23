@@ -78,6 +78,20 @@ def _non_negative_int(raw: dict, key: str, default: int) -> int:
     return value
 
 
+def _non_negative(raw: dict, key: str, default: float) -> float:
+    """Read a number that must be >= 0. Guards the money-sensitive fields
+    (profit threshold, slippage) against a hand-edit that would otherwise cause
+    a crash or, worse, trades at a loss (a negative profit threshold)."""
+    value = raw.get(key, default)
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"'{key}' doit etre un nombre (valeur lue : {value!r}).")
+    if value < 0:
+        raise ValueError(f"'{key}' ne peut pas etre negatif (valeur lue : {value}).")
+    return value
+
+
 def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
     load_dotenv(ROOT_DIR / ".env")
 
@@ -129,10 +143,10 @@ def load_config(config_path: str | Path = ROOT_DIR / "config.yaml") -> Config:
         scan_interval_seconds=_positive(raw, "scan_interval_seconds", 10),
         exchanges=exchanges,
         pairs=pairs,
-        min_profit_threshold=raw.get("min_profit_threshold", 0.005),
+        min_profit_threshold=_non_negative(raw, "min_profit_threshold", 0.005),
         max_trade_size_quote=_positive(raw, "max_trade_size_quote", 100),
-        max_balance_fraction_per_trade=raw.get("max_balance_fraction_per_trade", 1.0),
-        max_slippage=raw.get("max_slippage", 0.002),
+        max_balance_fraction_per_trade=_positive(raw, "max_balance_fraction_per_trade", 1.0),
+        max_slippage=_non_negative(raw, "max_slippage", 0.002),
         logging=LoggingConfig(**(raw.get("logging") or {})),
         request_timeout_seconds=_positive(raw, "request_timeout_seconds", 60.0),
         realtime=bool(raw.get("realtime", True)),
