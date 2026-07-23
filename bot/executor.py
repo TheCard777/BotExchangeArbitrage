@@ -100,9 +100,18 @@ class TradeExecutor:
         fresh_buy = await buy_client.fetch_ticker(opportunity.pair)
         fresh_sell = await sell_client.fetch_ticker(opportunity.pair)
 
+        buy_last = (fresh_buy or {}).get("last")
+        sell_last = (fresh_sell or {}).get("last")
+        if not buy_last or not sell_last or buy_last <= 0 or sell_last <= 0:
+            # Can't confirm a fresh price on both sides — abort rather than
+            # trade blind with real money.
+            raise TradeAborted(
+                f"Prix frais indisponibles pour {opportunity.pair} — trade annule par securite."
+            )
+
         fresh_profit = net_profit_fraction(
-            fresh_buy["last"],
-            fresh_sell["last"],
+            buy_last,
+            sell_last,
             buy_client.taker_fee(opportunity.pair),
             sell_client.taker_fee(opportunity.pair),
         )

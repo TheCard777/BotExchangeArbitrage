@@ -80,6 +80,26 @@ async def test_select_top_movers_picks_most_volatile():
     assert movers == ["SHIB/USDT", "DOGE/USDT"]
 
 
+async def test_select_top_movers_only_picks_pairs_on_two_exchanges():
+    class MoverClient(FakeClient):
+        def __init__(self, exchange_id, percentages):
+            super().__init__(exchange_id)
+            self._percentages = percentages
+
+        async def fetch_ticker(self, symbol):
+            if symbol not in self._percentages:
+                raise Exception(f"{self.id} does not have market symbol {symbol}")
+            return {"last": 100.0, "percentage": self._percentages[symbol]}
+
+    # DOGE is the most volatile but only on 'a' -> not tradeable.
+    # BTC and ETH are on both -> eligible; ETH more volatile than BTC.
+    a = MoverClient("a", {"BTC/USDT": 1.0, "ETH/USDT": 3.0, "DOGE/USDT": 50.0})
+    b = MoverClient("b", {"BTC/USDT": 1.0, "ETH/USDT": 2.5})
+    movers = await main.select_top_movers({"a": a, "b": b}, ["BTC/USDT", "ETH/USDT", "DOGE/USDT"], 2)
+    assert "DOGE/USDT" not in movers  # single-exchange pair excluded
+    assert movers == ["ETH/USDT", "BTC/USDT"]
+
+
 async def test_select_top_movers_falls_back_when_no_data():
     a = FakeClient("a", ticker_error=ConnectionError("down"))
     pairs = ["BTC/USDT", "ETH/USDT"]

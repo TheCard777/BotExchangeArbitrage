@@ -105,6 +105,21 @@ async def test_aborts_when_slippage_too_high():
     assert sell.orders == []
 
 
+async def test_aborts_cleanly_when_fresh_price_missing():
+    # Exchange returns a ticker with no usable 'last' price at slippage-check
+    # time -> clean TradeAborted, never a raw crash, and no orders placed.
+    class NoLastClient(FakeClient):
+        async def fetch_ticker(self, symbol):
+            return {"last": None}
+
+    buy = NoLastClient("a", balance={"USDT": {"free": 1000.0}})
+    sell = NoLastClient("b", balance={"BTC": {"free": 10.0}})
+    executor = TradeExecutor({"a": buy, "b": sell}, make_config(max_trade_size_quote=50.0))
+    with pytest.raises(TradeAborted, match="Prix frais indisponibles"):
+        await executor.execute(make_opportunity())
+    assert buy.orders == [] and sell.orders == []
+
+
 async def test_sell_leg_failure_propagates_after_buy():
     buy = FakeClient("a", prices={"BTC/USDT": 100.0}, balance={"USDT": {"free": 1000.0}})
     sell = FakeClient(

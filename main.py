@@ -58,34 +58,41 @@ async def check_internet_connectivity(per_host_timeout: float = 6) -> bool:
 
 
 async def select_top_movers(clients: dict, pairs: list[str], count: int) -> list[str]:
-    """Keep only the `count` most volatile pairs (largest absolute 24h price
-    change across the connected exchanges). Volatile pairs are where the widest
-    cross-exchange spreads tend to appear. Falls back to all pairs if no 24h
-    data is available."""
-    async def volatility_of(exchange_id: str, client, pair: str):
+    """Keep the `count` most volatile pairs (largest absolute 24h price change).
+    Volatile pairs are where the widest cross-exchange spreads tend to appear.
+
+    Only pairs available on at least TWO connected exchanges are eligible —
+    a pair listed on a single exchange can never produce an arbitrage
+    opportunity, so watching it would be pointless. Falls back to all pairs if
+    nothing qualifies (e.g. no 24h data)."""
+    async def probe(exchange_id: str, client, pair: str):
         try:
             ticker = await client.fetch_ticker(pair)
             pct = (ticker or {}).get("percentage")
-            return pair, abs(float(pct)) if pct is not None else None
+            volatility = abs(float(pct)) if pct is not None else 0.0
+            return pair, True, volatility
         except Exception:
-            return pair, None
+            return pair, False, 0.0
 
     results = await asyncio.gather(
-        *(volatility_of(eid, c, p) for eid, c in clients.items() for p in pairs),
+        *(probe(eid, c, p) for eid, c in clients.items() for p in pairs),
         return_exceptions=True,
     )
-    best: dict[str, float] = {}
+    available: dict[str, int] = {}   # pair -> number of exchanges that list it
+    volatility: dict[str, float] = {}  # pair -> max abs 24h change
     for item in results:
         if isinstance(item, Exception):
             continue
-        pair, vol = item
-        if vol is not None:
-            best[pair] = max(best.get(pair, 0.0), vol)
+        pair, listed, vol = item
+        if listed:
+            available[pair] = available.get(pair, 0) + 1
+            volatility[pair] = max(volatility.get(pair, 0.0), vol)
 
-    if not best:
-        return pairs
-    ranked = sorted(best, key=lambda p: best[p], reverse=True)
-    return ranked[:count]
+    tradeable = [p for p in pairs if available.get(p, 0) >= 2]
+    if not tradeable:
+        return pairs  # nothing comparable across exchanges — keep the universe
+    tradeable.sort(key=lambda p: volatility.get(p, 0.0), reverse=True)
+    return tradeable[:count]
 
 
 async def connect_with_retries(
