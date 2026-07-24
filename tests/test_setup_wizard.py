@@ -70,29 +70,49 @@ def test_choose_top_movers_skips_when_few_pairs():
     assert setup_wizard.choose_top_movers(3) == 0
 
 
-def test_read_secret_uses_visible_input_in_git_bash(monkeypatch):
-    monkeypatch.setenv("MSYSTEM", "MINGW64")
+def test_read_secret_visible_input_when_not_a_tty(monkeypatch):
+    # No real console (e.g. raw Git Bash/mintty) -> visible input, no getpass.
+    monkeypatch.setattr(setup_wizard, "_masked_input_supported", lambda: False)
     monkeypatch.setattr("builtins.input", lambda prompt="": "  mykey  ")
-    # Must NOT call getpass (broken in Git Bash) — use input and strip.
     monkeypatch.setattr(
         setup_wizard.getpass, "getpass", lambda *a, **k: (_ for _ in ()).throw(AssertionError("getpass used"))
     )
     assert setup_wizard.read_secret("Cle : ") == "mykey"
 
 
-def test_read_secret_uses_getpass_outside_git_bash(monkeypatch):
-    monkeypatch.delenv("MSYSTEM", raising=False)
+def test_read_secret_masked_input_on_a_tty(monkeypatch):
+    monkeypatch.setattr(setup_wizard, "_masked_input_supported", lambda: True)
     monkeypatch.setattr(setup_wizard.getpass, "getpass", lambda *a, **k: "  secret  ")
     assert setup_wizard.read_secret("Cle : ") == "secret"
 
 
 def test_read_secret_falls_back_to_input_if_getpass_fails(monkeypatch):
-    monkeypatch.delenv("MSYSTEM", raising=False)
+    monkeypatch.setattr(setup_wizard, "_masked_input_supported", lambda: True)
     monkeypatch.setattr(
         setup_wizard.getpass, "getpass", lambda *a, **k: (_ for _ in ()).throw(OSError("no tty"))
     )
     monkeypatch.setattr("builtins.input", lambda prompt="": "typed")
     assert setup_wizard.read_secret("Cle : ") == "typed"
+
+
+def test_live_confirmation_accepts_activer_variants():
+    from setup_wizard import is_live_confirmation
+
+    # Plain, with copied quotes, with spaces, lowercase — all mean "go live".
+    assert is_live_confirmation("ACTIVER")
+    assert is_live_confirmation("'ACTIVER'")
+    assert is_live_confirmation('"ACTIVER"')
+    assert is_live_confirmation("  activer  ")
+
+
+def test_live_confirmation_rejects_anything_else():
+    from setup_wizard import is_live_confirmation
+
+    # Anything that isn't clearly ACTIVER stays in safe demo mode.
+    assert not is_live_confirmation("")
+    assert not is_live_confirmation("oui")
+    assert not is_live_confirmation("active")
+    assert not is_live_confirmation("y")
 
 
 def test_default_pairs_are_valid_and_broad():

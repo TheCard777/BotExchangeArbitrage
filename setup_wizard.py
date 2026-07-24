@@ -6,24 +6,28 @@ for you — no manual file editing required. Safe to re-run at any time.
 from __future__ import annotations
 
 import getpass
-import os
+import sys
 from pathlib import Path
 
 from bot.config import PASSPHRASE_EXCHANGES
 
 
-def _in_git_bash() -> bool:
-    # Git Bash / MSYS sets MSYSTEM (e.g. MINGW64). getpass's masked input is
-    # unreliable there (it can look frozen or crash with KeyboardInterrupt).
-    return bool(os.environ.get("MSYSTEM"))
+def _masked_input_supported() -> bool:
+    # Masked input (getpass) needs a real interactive console. Under a proper
+    # terminal — including Git Bash launched via winpty (see install.sh) —
+    # stdin is a tty and getpass works. In raw Git Bash/mintty it is not a tty
+    # and getpass is broken, so we fall back to visible input there.
+    try:
+        return sys.stdin.isatty()
+    except Exception:
+        return False
 
 
 def read_secret(prompt: str) -> str:
-    """Read an API key/secret. Uses masked input where it works; in Git Bash on
-    Windows (where masked input is broken) falls back to a normal visible input
-    so the user can actually type — on your own machine that's an acceptable
-    trade-off, and far better than a frozen or crashing prompt."""
-    if _in_git_bash():
+    """Read an API key/secret. Masked (hidden) where the terminal supports it;
+    visible input otherwise so the user can always type instead of hitting a
+    frozen or crashing prompt."""
+    if not _masked_input_supported():
         try:
             return input(prompt).strip()
         except EOFError:
@@ -269,6 +273,13 @@ def choose_top_movers(num_pairs: int) -> int:
     return 0
 
 
+def is_live_confirmation(answer: str) -> bool:
+    """True if the user really confirmed real trading. Accept ACTIVER even if
+    they copied the quotes ('ACTIVER'), added spaces, or changed the case —
+    otherwise they'd stay in demo by mistake when they wanted real mode."""
+    return answer.strip().strip("'\"").strip().upper() == LIVE_CONFIRM_PHRASE
+
+
 def choose_pairs_and_focus() -> tuple[list[str], int]:
     """Ask how to pick pairs. Fully automatic (watch a broad selection and
     auto-focus on the most volatile) or manual. Returns (pairs, top_movers)."""
@@ -290,11 +301,11 @@ def collect_api_keys(exchanges: list[str]) -> dict[str, tuple[str, str, str]]:
     print()
     print("Pour chaque exchange, entre une cle API avec les droits de")
     print("TRADING uniquement (jamais de droit de retrait).")
-    if _in_git_bash():
-        print("Astuce : ta saisie sera VISIBLE a l'ecran ici (Git Bash) — c'est normal.")
-    else:
+    if _masked_input_supported():
         print("Astuce : ta saisie est INVISIBLE (rien ne s'affiche quand tu tapes),")
         print("c'est normal, c'est pour proteger ta cle. Colle ta cle, puis Entree.")
+    else:
+        print("Astuce : ta saisie sera VISIBLE a l'ecran ici — c'est normal.")
     print("Laisse vide et appuie sur Entree pour passer un exchange.")
     print()
     keys = {}
@@ -387,7 +398,7 @@ def main() -> None:
         print(f"  -> tape '{LIVE_CONFIRM_PHRASE}' pour activer le trading reel tout de suite,")
         print("     ou appuie juste sur Entree pour rester en mode demonstration.")
         confirm = ask("Ta reponse", "")
-        dry_run = confirm.strip().upper() != LIVE_CONFIRM_PHRASE
+        dry_run = not is_live_confirmation(confirm)
 
     write_config(dry_run, exchanges, pairs, max_trade_size_quote, top_movers)
     write_env(keys)

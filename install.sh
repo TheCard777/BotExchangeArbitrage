@@ -54,4 +54,10 @@ echo "Installation des dependances..."
 "$VENV_PIP" install -r requirements.txt -q
 
 echo ""
-"$VENV_PYTHON" setup_wizard.py
+# In Git Bash (mintty) getpass can't hide the API-key input; winpty gives a
+# real console so the key stays masked. Fall back to a plain run otherwise.
+if [ -n "$MSYSTEM" ] && command -v winpty >/dev/null 2>&1; then
+  winpty "$VENV_PYTHON" setup_wizard.py
+else
+  "$VENV_PYTHON" setup_wizard.py
+fi
