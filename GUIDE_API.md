@@ -77,11 +77,17 @@ Le bot te demandera : `KRAKEN_API_KEY` (= la Key) et `KRAKEN_API_SECRET`
 
 ## Bybit
 
-1. Va dans **Compte → API** (API Management) → **Créer une nouvelle clé**.
-2. Choisis **"System-generated API Keys"**.
-3. Type : **Read-Write**. Permissions : coche **Spot Trading** (ordres).
-   - ❌ ne coche pas les retraits.
-4. Copie la **clé** et le **secret**.
+1. Va dans **Compte → API** (API Management) → **Créer une nouvelle clé**
+   (**System-generated API Keys**).
+2. ⚠️ **LE POINT LE PLUS IMPORTANT** — « Autorisations de la clé API » :
+   choisis **« Lecture-écriture »** (Read-Write).
+   - ❌ **PAS « Lecture seule »** (Read-only) ! Une clé en lecture seule ne peut
+     que regarder, pas trader → le bot la refuse (« permissions insuffisantes »).
+3. Coche **Trader** sous **SPOT / Trading Unifié** (le droit de passer des ordres).
+   - ❌ ne coche PAS Retrait ni Transfert de compte.
+4. **Restriction d'adresse IP** : laisse **aucune** (ou ajoute ton IP). Une
+   restriction d'IP mal réglée fait aussi rejeter la clé.
+5. **Envoyer**, puis copie la **clé** et le **secret**.
 
 Le bot te demandera : `BYBIT_API_KEY` et `BYBIT_API_SECRET`.
 
