@@ -1,0 +1,8 @@
+# Dependances du SERVEUR de la plateforme (backend web).
+# Le bot lui-meme (dossier bot/) n'en a pas besoin : garde-le leger.
+# Installe-les seulement si tu heberges la plateforme :  pip install -r server/requirements.txt
+
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.27
+cryptography>=42.0
+# ccxt / aiohttp / etc. viennent deja de requirements.txt (le bot).

@@ -1,0 +1,8 @@
+# Le ZIP distribue aux utilisateurs finaux (git archive) doit rester un bot
+# leger et autonome. La plateforme SaaS (server/) est pour l'hebergeur, pas
+# pour les clients, et ses tests dependent de FastAPI (hors requirements.txt
+# du bot). On les exclut donc du paquet distribue, tout en les gardant dans
+# le depot.
+server/ export-ignore
+tests/test_server.py export-ignore
+.gitattributes export-ignore
