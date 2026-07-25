@@ -23,6 +23,7 @@ Design notes / honesty:
 """
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -71,7 +72,9 @@ def create_app(store: Store | None = None, manager: BotManager | None = None) ->
         app.state.store.close()
 
     app = FastAPI(title="Plateforme Arbitrage", version="1", lifespan=lifespan)
-    app.state.store = store or Store()
+    # PLATFORM_DB_PATH lets a host (Render, etc.) point the DB at a persistent
+    # disk; falls back to a local file for dev.
+    app.state.store = store or Store(os.environ.get("PLATFORM_DB_PATH", "platform.db"))
     app.state.manager = manager or BotManager(app.state.store)
 
     @app.get("/", response_class=HTMLResponse)

@@ -5,4 +5,6 @@
 # le depot.
 server/ export-ignore
 tests/test_server.py export-ignore
+render.yaml export-ignore
+DEPLOIEMENT_RENDER.md export-ignore
 .gitattributes export-ignore
