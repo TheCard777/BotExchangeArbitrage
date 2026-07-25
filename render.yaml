@@ -5,7 +5,7 @@ services:
   - type: web
     name: plateforme-arbitrage
     runtime: python
-    plan: free            # gratuit pour tester (voir les limites dans le guide)
+    plan: starter         # offre payante : service toujours allume (ne s'endort plus)
     buildCommand: "pip install -r requirements.txt && pip install -r server/requirements.txt"
     startCommand: "uvicorn server.app:get_app --factory --host 0.0.0.0 --port $PORT"
     envVars:
@@ -16,14 +16,13 @@ services:
       #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - key: BOT_PLATFORM_SECRET
         sync: false
+      # La base est stockee sur le disque permanent /var/data (voir plus bas),
+      # pour que les comptes et les cles survivent aux redemarrages.
       - key: PLATFORM_DB_PATH
-        value: "platform.db"
+        value: "/var/data/platform.db"
 
-    # --- Garder les comptes apres un redemarrage (offre payante) --------------
-    # Sur l'offre gratuite, la base est effacee a chaque redemarrage (test only).
-    # Pour la rendre permanente : passe en offre payante, DECOMMENTE le bloc
-    # ci-dessous, et change PLATFORM_DB_PATH ci-dessus en "/var/data/platform.db".
-    # disk:
-    #   name: data
-    #   mountPath: /var/data
-    #   sizeGB: 1
+    # --- Disque permanent : garde les comptes + cles entre les redemarrages ---
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
