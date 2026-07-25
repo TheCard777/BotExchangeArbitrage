@@ -94,7 +94,9 @@
   <div class="wrap">
     <div class="banner warn">
       ⚠️ Utilise des clés API en <b>trading seul, jamais retrait</b>. Commence en
-      <b>mode démonstration</b> pour vérifier que tout marche avant de risquer de l'argent réel.
+      <b>mode démonstration</b> avant de risquer de l'argent réel. En mode réel, tu dois
+      avoir des fonds <b>des deux côtés</b> (de quoi acheter sur un exchange ET la crypto à
+      vendre sur l'autre) — le bot ne transfère pas d'argent entre exchanges.
     </div>
 
     <!-- Statut du bot -->
@@ -108,10 +110,19 @@
         </div>
       </div>
       <div id="botError" class="msg bad"></div>
+      <div id="botNote" class="msg" style="margin-top:4px"></div>
       <div class="muted" id="scanInfo" style="margin-top:6px"></div>
-      <table style="margin-top:12px">
+
+      <h3 style="font-size:14px;margin:16px 0 6px">Opportunités en direct</h3>
+      <table>
         <thead><tr><th>Paire</th><th>Acheter sur</th><th>Vendre sur</th><th>Profit net</th></tr></thead>
         <tbody id="oppRows"><tr><td colspan="4" class="muted">Aucune opportunité pour l'instant.</td></tr></tbody>
+      </table>
+
+      <h3 style="font-size:14px;margin:18px 0 6px">Trades exécutés (mode réel)</h3>
+      <table>
+        <thead><tr><th>Heure</th><th>Paire</th><th>Acheté sur</th><th>Vendu sur</th><th>Profit</th></tr></thead>
+        <tbody id="tradeRows"><tr><td colspan="5" class="muted">Aucun trade exécuté.</td></tr></tbody>
       </table>
     </div>
 
@@ -324,20 +335,42 @@ function renderStatus(s){
     mode.className = "pill " + (real ? "err" : "on"); }
 
   $("botError").textContent = s.error || "";
+  setMsg($("botNote"), s.note || "", true);
   const sum = s.summary||{};
   $("scanInfo").textContent = (s.status==="running")
     ? `${sum.exchanges||0} exchange(s) scanné(s).` : "";
 
+  // opportunités (radar)
   const rows = $("oppRows"); rows.innerHTML="";
   const opps = s.opportunities||[];
-  if(!opps.length){ rows.innerHTML='<tr><td colspan="4" class="muted">Aucune opportunité pour l\'instant.</td></tr>'; return; }
-  opps.slice(0,15).forEach(o=>{
-    const pct = (o.net_profit_fraction*100);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td><b>${o.pair}</b></td><td>${o.buy_exchange}</td><td>${o.sell_exchange}</td>
-      <td class="num ${pct>=0?'good':'bad'}">${pct>=0?'+':''}${pct.toFixed(3)} %</td>`;
-    rows.appendChild(tr);
-  });
+  if(!opps.length){
+    rows.innerHTML='<tr><td colspan="4" class="muted">Aucune opportunité pour l\'instant.</td></tr>';
+  } else {
+    opps.slice(0,15).forEach(o=>{
+      const pct = (o.net_profit_fraction*100);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><b>${o.pair}</b></td><td>${o.buy_exchange}</td><td>${o.sell_exchange}</td>
+        <td class="num ${pct>=0?'good':'bad'}">${pct>=0?'+':''}${pct.toFixed(3)} %</td>`;
+      rows.appendChild(tr);
+    });
+  }
+
+  // trades réellement exécutés
+  const trows = $("tradeRows"); trows.innerHTML="";
+  const trades = s.trades||[];
+  if(!trades.length){
+    trows.innerHTML='<tr><td colspan="5" class="muted">Aucun trade exécuté.</td></tr>';
+  } else {
+    trades.slice(0,20).forEach(t=>{
+      const pct = (t.net_profit_fraction*100);
+      const hh = t.time ? new Date(t.time*1000).toLocaleTimeString() : "";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="muted">${hh}</td><td><b>${t.pair}</b></td>
+        <td>${t.buy_exchange}</td><td>${t.sell_exchange}</td>
+        <td class="num good">+${pct.toFixed(3)} %</td>`;
+      trows.appendChild(tr);
+    });
+  }
 }
 async function refreshStatus(){
   try{ renderStatus(await api("/bot/status")); }catch(e){}

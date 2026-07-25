@@ -166,6 +166,11 @@ def test_config_set_merges_and_ignores_unknown(store):
 
 
 # --- engine -----------------------------------------------------------------
+async def _ret(value):
+    """Wrap a value as an awaitable, for build_scanner fakes."""
+    return value
+
+
 def _make_config(store, uid):
     store.set_exchange_key(uid, "binance", "k", "s")
     store.set_exchange_key(uid, "kraken", "k", "s")
@@ -225,6 +230,120 @@ async def test_user_bot_engine_runs_and_reports(store):
     assert snap["opportunities"], "engine should have reported an opportunity"
     assert snap["summary"]["exchanges"] == 2
     assert snap["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_engine_demo_mode_does_not_trade(store):
+    """In demo mode, opportunities are shown but NO order is placed."""
+    uid = store.create_user("a@b.com", "password123")
+    store.set_config(uid, {"dry_run": True})
+    config = _make_config(store, uid)
+
+    executed = []
+
+    class FakeExecutor:
+        async def execute(self, opp):
+            executed.append(opp)
+
+    engine = UserBotEngine(
+        config,
+        build_scanner=lambda _c: _ret(FakeScanner()),
+        build_executor=lambda scanner, cfg: FakeExecutor(),
+        scan_interval=0.01,
+    )
+    await engine.start()
+    for _ in range(100):
+        if engine.opportunities:
+            break
+        await asyncio.sleep(0.01)
+    await engine.stop()
+    assert engine.opportunities  # radar works
+    assert executed == []  # but nothing was traded in demo
+
+
+@pytest.mark.asyncio
+async def test_engine_real_mode_executes_and_records_trade(store):
+    uid = store.create_user("a@b.com", "password123")
+    store.set_config(uid, {"dry_run": False})
+    config = _make_config(store, uid)
+
+    executed = []
+
+    class FakeExecutor:
+        async def execute(self, opp):
+            executed.append(opp)
+
+    engine = UserBotEngine(
+        config,
+        build_scanner=lambda _c: _ret(FakeScanner()),
+        build_executor=lambda scanner, cfg: FakeExecutor(),
+        scan_interval=0.01,
+    )
+    await engine.start()
+    for _ in range(100):
+        if engine.trades:
+            break
+        await asyncio.sleep(0.01)
+    await engine.stop()
+    assert executed, "real mode should place an order"
+    assert engine.trades and engine.trades[0]["pair"] == "BTC/USDT"
+
+
+@pytest.mark.asyncio
+async def test_engine_halts_when_a_trade_leg_fails(store):
+    """A non-TradeAborted failure (e.g. sell leg failed) must STOP the bot."""
+    uid = store.create_user("a@b.com", "password123")
+    store.set_config(uid, {"dry_run": False})
+    config = _make_config(store, uid)
+
+    class FakeExecutor:
+        async def execute(self, opp):
+            raise RuntimeError("sell leg failed")
+
+    engine = UserBotEngine(
+        config,
+        build_scanner=lambda _c: _ret(FakeScanner()),
+        build_executor=lambda scanner, cfg: FakeExecutor(),
+        scan_interval=0.01,
+    )
+    await engine.start()
+    for _ in range(100):
+        if engine.status == "error":
+            break
+        await asyncio.sleep(0.01)
+    await engine.stop()
+    assert engine.status == "error"
+    assert "ARRETE" in engine.error
+
+
+@pytest.mark.asyncio
+async def test_engine_trade_aborted_keeps_running(store):
+    """TradeAborted (insufficient balance, slippage) is a normal skip: keep scanning."""
+    from bot.executor import TradeAborted
+
+    uid = store.create_user("a@b.com", "password123")
+    store.set_config(uid, {"dry_run": False})
+    config = _make_config(store, uid)
+
+    class FakeExecutor:
+        async def execute(self, opp):
+            raise TradeAborted("solde insuffisant")
+
+    engine = UserBotEngine(
+        config,
+        build_scanner=lambda _c: _ret(FakeScanner()),
+        build_executor=lambda scanner, cfg: FakeExecutor(),
+        scan_interval=0.01,
+    )
+    await engine.start()
+    for _ in range(50):
+        if engine.note:
+            break
+        await asyncio.sleep(0.01)
+    running = engine.status == "running"
+    await engine.stop()
+    assert running, "a TradeAborted must not stop the bot"
+    assert "solde insuffisant" in engine.note
 
 
 @pytest.mark.asyncio

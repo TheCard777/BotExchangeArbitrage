@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import time
 
 from bot.config import Config, LoggingConfig
 from bot.dns_fallback import install as install_dns_fallback
 from bot.exchange_client import ExchangeClient
+from bot.executor import TradeAborted, TradeExecutor
 from bot.scanner import ArbitrageScanner
 
 
@@ -59,15 +61,23 @@ def _opportunity_to_dict(opp) -> dict:
 
 
 class UserBotEngine:
-    def __init__(self, config: Config, build_scanner=None, scan_interval: float = 10.0):
+    def __init__(self, config: Config, build_scanner=None, build_executor=None,
+                 scan_interval: float = 10.0):
         self.config = config
         self._build_scanner = build_scanner or _default_build_scanner
+        # tests inject a fake executor; default trades for real via ccxt.
+        self._build_executor = build_executor or (
+            lambda scanner, config: TradeExecutor(scanner.clients, config)
+        )
         self.scan_interval = scan_interval
         self.status = "stopped"
         self.error: str | None = None
         self.opportunities: list[dict] = []
         self.summary: dict = {}
+        self.trades: list[dict] = []
+        self.note: str | None = None
         self._scanner = None
+        self._executor = None
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
 
@@ -86,6 +96,7 @@ class UserBotEngine:
             self.status = "error"
             self.error = str(e)
             return
+        self._executor = self._build_executor(self._scanner, self.config)
         self.status = "running"
         try:
             while not self._stop.is_set():
@@ -98,6 +109,10 @@ class UserBotEngine:
                         "best": _opportunity_to_dict(best) if best else None,
                     }
                     self.error = None
+                    # Real mode: try to execute the single best opportunity this
+                    # cycle. Demo mode leaves opps as a radar only (no orders).
+                    if not self.config.dry_run and opps:
+                        await self._maybe_trade(opps[0])
                 except Exception as e:  # noqa: BLE001 — keep scanning next cycle
                     self.error = str(e)
                 try:
@@ -106,7 +121,36 @@ class UserBotEngine:
                     pass
         finally:
             await self._close()
-            self.status = "stopped"
+            # Preserve an 'error' status set by a failed trade leg; otherwise
+            # a normal stop.
+            if self.status != "error":
+                self.status = "stopped"
+
+    async def _maybe_trade(self, opp) -> None:
+        """Execute one real arbitrage. TradeAborted = a normal, safe skip
+        (not enough balance, slippage, too small). Any OTHER failure may mean a
+        half-filled position, so we halt the bot loudly instead of trading on."""
+        try:
+            await self._executor.execute(opp)
+        except TradeAborted as e:
+            self.note = f"Trade non passe ({opp.pair}) : {e}"
+        except Exception as e:  # noqa: BLE001 — a real failure: stop, don't compound risk
+            self.error = (
+                f"TRADE ECHOUE sur {opp.pair} : {e}. Le bot est ARRETE par securite — "
+                "verifie tes positions/soldes sur les deux exchanges avant de relancer."
+            )
+            self.status = "error"
+            self._stop.set()
+        else:
+            self.trades.insert(0, {
+                "pair": opp.pair,
+                "buy_exchange": opp.buy_exchange,
+                "sell_exchange": opp.sell_exchange,
+                "net_profit_fraction": opp.net_profit_fraction,
+                "time": time.time(),
+            })
+            self.trades = self.trades[:20]
+            self.note = f"Trade execute : {opp.pair} +{opp.net_profit_fraction * 100:.3f}%"
 
     async def _close(self) -> None:
         if self._scanner:
@@ -123,10 +167,12 @@ class UserBotEngine:
         return {
             "status": self.status,
             "error": self.error,
+            "note": self.note,
             "dry_run": self.config.dry_run,
             "exchanges": list(self.config.exchanges),
             "opportunities": self.opportunities,
             "summary": self.summary,
+            "trades": self.trades,
         }
 
 
@@ -156,7 +202,10 @@ class BotManager:
     def snapshot(self, user_id: int) -> dict:
         engine = self._engines.get(user_id)
         if not engine:
-            return {"status": "stopped", "error": None, "opportunities": [], "summary": {}}
+            return {
+                "status": "stopped", "error": None, "note": None,
+                "opportunities": [], "summary": {}, "trades": [],
+            }
         return engine.snapshot()
 
     async def shutdown(self) -> None:
