@@ -6,3 +6,7 @@ venv/
 .venv/
 logs/
 *.log
+
+# Base de donnees de la plateforme (comptes + cles chiffrees) : jamais dans git
+*.db
+platform.db
