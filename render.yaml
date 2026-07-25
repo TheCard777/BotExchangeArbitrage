@@ -5,7 +5,8 @@ services:
   - type: web
     name: plateforme-arbitrage
     runtime: python
-    plan: starter         # offre payante : service toujours allume (ne s'endort plus)
+    plan: free            # gratuit. ATTENTION : sans disque permanent, la base
+                          # (comptes + cles) est effacee a chaque redemarrage.
     buildCommand: "pip install -r requirements.txt && pip install -r server/requirements.txt"
     startCommand: "uvicorn server.app:get_app --factory --host 0.0.0.0 --port $PORT"
     envVars:
@@ -16,13 +17,14 @@ services:
       #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - key: BOT_PLATFORM_SECRET
         sync: false
-      # La base est stockee sur le disque permanent /var/data (voir plus bas),
-      # pour que les comptes et les cles survivent aux redemarrages.
       - key: PLATFORM_DB_PATH
-        value: "/var/data/platform.db"
+        value: "platform.db"
 
-    # --- Disque permanent : garde les comptes + cles entre les redemarrages ---
-    disk:
-      name: data
-      mountPath: /var/data
-      sizeGB: 1
+    # --- Pour garder les comptes/cles entre les redemarrages (offre payante) ---
+    # Passe en plan payant, remets  plan: starter  ci-dessus, PLATFORM_DB_PATH a
+    # "/var/data/platform.db", et DECOMMENTE le disque. Le disque est INTERDIT
+    # en gratuit (c'est ce qui faisait echouer la synchro Render).
+    # disk:
+    #   name: data
+    #   mountPath: /var/data
+    #   sizeGB: 1
