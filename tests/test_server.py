@@ -382,3 +382,10 @@ def test_users_cannot_see_each_others_exchanges(client):
     h2 = _auth(client, "c@d.com")
     client.put("/api/exchanges/binance", json={"api_key": "k", "secret": "s"}, headers=h1)
     assert client.get("/api/exchanges", headers=h2).json()["exchanges"] == []
+
+
+def test_frontend_is_served(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "Plateforme Arbitrage" in r.text

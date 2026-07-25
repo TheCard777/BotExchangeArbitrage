@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plateforme Arbitrage</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+<style>
+  :root{
+    --bg:#0f1220; --panel:#191d2e; --panel2:#20263b; --line:#2b3350;
+    --text:#e8ebf5; --muted:#9aa3c0; --accent:#5b8cff; --accent2:#3ad29f;
+    --danger:#ff6b6b; --warn:#ffcc66;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  a{color:var(--accent)}
+  header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  .wrap{max-width:920px;margin:0 auto;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px;margin-bottom:18px}
+  .card h2{margin:0 0 12px;font-size:16px}
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);font-size:14px}
+  input::placeholder{color:#6b7290}
+  button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-size:14px;
+    font-weight:600;background:var(--accent);color:#fff}
+  button.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  button.danger{background:transparent;border:1px solid var(--danger);color:var(--danger);
+    padding:6px 10px;font-size:13px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.on{background:rgba(58,210,159,.15);color:var(--accent2)}
+  .pill.off{background:rgba(154,163,192,.15);color:var(--muted)}
+  .pill.err{background:rgba(255,107,107,.15);color:var(--danger)}
+  .banner{border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px}
+  .banner.warn{background:rgba(255,204,102,.12);border:1px solid rgba(255,204,102,.4);color:#ffe0a3}
+  .msg{min-height:20px;font-size:13px;margin-top:8px}
+  .msg.ok{color:var(--accent2)} .msg.bad{color:var(--danger)}
+  .hidden{display:none}
+  .tag{font-size:12px;background:var(--panel2);border:1px solid var(--line);
+    padding:2px 8px;border-radius:8px;color:var(--muted)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+    padding:4px 12px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .chip b{font-weight:600;text-transform:capitalize}
+  .switch{display:flex;align-items:center;gap:10px}
+  .num{font-variant-numeric:tabular-nums}
+  .good{color:var(--accent2)} .bad{color:var(--danger)}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:24px}
+</style>
+</head>
+<body>
+
+<!-- ====================== LOGIN ====================== -->
+<div id="auth" class="wrap" style="max-width:420px;margin-top:8vh">
+  <div class="card">
+    <h2 id="authTitle">Connexion</h2>
+    <p class="muted" style="margin-top:-4px">Connecte tes exchanges et laisse le bot chercher les opportunités.</p>
+    <label>Email</label>
+    <input id="email" type="email" placeholder="toi@exemple.com" autocomplete="username">
+    <label>Mot de passe <span class="muted">(min. 8 caractères)</span></label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+    <div class="row" style="margin-top:16px">
+      <button id="loginBtn">Se connecter</button>
+      <button id="registerBtn" class="secondary">Créer un compte</button>
+    </div>
+    <div id="authMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- ====================== APP ====================== -->
+<div id="app" class="hidden">
+  <header>
+    <h1>⚡ Plateforme Arbitrage</h1>
+    <div class="row" style="align-items:center">
+      <span id="whoami" class="tag"></span>
+      <button id="logoutBtn" class="ghost">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="banner warn">
+      ⚠️ Utilise des clés API en <b>trading seul, jamais retrait</b>. Commence en
+      <b>mode démonstration</b> pour vérifier que tout marche avant de risquer de l'argent réel.
+    </div>
+
+    <!-- Statut du bot -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">Bot &nbsp;<span id="statusPill" class="pill off">arrêté</span>
+          &nbsp;<span id="modePill" class="pill off"></span></h2>
+        <div class="row">
+          <button id="startBtn">▶ Démarrer</button>
+          <button id="stopBtn" class="secondary">■ Arrêter</button>
+        </div>
+      </div>
+      <div id="botError" class="msg bad"></div>
+      <div class="muted" id="scanInfo" style="margin-top:6px"></div>
+      <table style="margin-top:12px">
+        <thead><tr><th>Paire</th><th>Acheter sur</th><th>Vendre sur</th><th>Profit net</th></tr></thead>
+        <tbody id="oppRows"><tr><td colspan="4" class="muted">Aucune opportunité pour l'instant.</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Exchanges -->
+    <div class="card">
+      <h2>Mes exchanges</h2>
+      <p class="muted" style="margin-top:-6px">Il en faut au moins <b>2</b> pour lancer le bot.</p>
+      <div id="exchangeChips" class="chips"></div>
+      <div class="grid2" style="margin-top:14px">
+        <div>
+          <label>Exchange</label>
+          <select id="exSelect">
+            <option value="binance">Binance</option>
+            <option value="kraken">Kraken</option>
+            <option value="bybit">Bybit</option>
+            <option value="coinbase">Coinbase</option>
+            <option value="kucoin">KuCoin (passphrase)</option>
+            <option value="okx">OKX (passphrase)</option>
+            <option value="bitget">Bitget (passphrase)</option>
+            <option value="gate">Gate.io</option>
+            <option value="mexc">MEXC</option>
+            <option value="htx">HTX</option>
+            <option value="bitfinex">Bitfinex</option>
+            <option value="bingx">BingX</option>
+          </select>
+        </div>
+        <div>
+          <label>Clé API</label>
+          <input id="exKey" placeholder="API Key">
+        </div>
+        <div>
+          <label>Secret</label>
+          <input id="exSecret" type="password" placeholder="API Secret">
+        </div>
+        <div id="passWrap" class="hidden">
+          <label>Passphrase</label>
+          <input id="exPass" type="password" placeholder="Passphrase (KuCoin/OKX/Bitget)">
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button id="addExBtn">Ajouter / mettre à jour</button>
+      </div>
+      <div id="exMsg" class="msg"></div>
+    </div>
+
+    <!-- Réglages -->
+    <div class="card">
+      <h2>Réglages</h2>
+      <div class="switch" style="margin-bottom:6px">
+        <input type="checkbox" id="dryRun" style="width:auto">
+        <label for="dryRun" style="margin:0">Mode démonstration (aucun ordre réel) — <b>recommandé</b></label>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Paires (séparées par une virgule)</label>
+          <input id="pairs" placeholder="BTC/USDT, ETH/USDT, SOL/USDT">
+        </div>
+        <div>
+          <label>Seuil de profit minimum (%)</label>
+          <input id="minProfit" type="number" step="0.1" min="0" placeholder="0.5">
+        </div>
+        <div>
+          <label>Taille max par trade (USDT)</label>
+          <input id="maxTrade" type="number" step="1" min="1" placeholder="100">
+        </div>
+        <div>
+          <label>Top movers auto (0 = désactivé)</label>
+          <input id="topMovers" type="number" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button id="saveCfgBtn">Enregistrer les réglages</button>
+      </div>
+      <div id="cfgMsg" class="msg"></div>
+    </div>
+  </div>
+  <footer>Les gains ne sont jamais garantis. Le trading crypto comporte un risque de perte.</footer>
+</div>
+
+<script>
+const PASSPHRASE_EX = ["kucoin","okx","bitget"];
+let TOKEN = localStorage.getItem("token") || "";
+let pollTimer = null;
+
+const $ = id => document.getElementById(id);
+function setMsg(el, text, ok){ el.textContent = text||""; el.className = "msg " + (text ? (ok?"ok":"bad") : ""); }
+
+async function api(path, {method="GET", body=null, auth=true}={}){
+  const headers = {"Content-Type":"application/json"};
+  if(auth && TOKEN) headers["Authorization"] = "Bearer " + TOKEN;
+  const res = await fetch("/api"+path, {method, headers, body: body?JSON.stringify(body):null});
+  let data = {};
+  try { data = await res.json(); } catch(e){}
+  if(!res.ok){
+    const detail = data.detail;
+    const msg = Array.isArray(detail) ? detail.map(d=>d.msg).join(", ") : (detail || ("Erreur "+res.status));
+    if(res.status===401){ logout(); }
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ---------- Auth ----------
+async function register(){
+  try{
+    await api("/register", {method:"POST", auth:false,
+      body:{email:$("email").value.trim(), password:$("password").value}});
+    setMsg($("authMsg"), "Compte créé ! Connexion...", true);
+    await login();
+  }catch(e){ setMsg($("authMsg"), e.message, false); }
+}
+async function login(){
+  try{
+    const {token} = await api("/login", {method:"POST", auth:false,
+      body:{email:$("email").value.trim(), password:$("password").value}});
+    TOKEN = token; localStorage.setItem("token", token);
+    setMsg($("authMsg"), "", true);
+    showApp();
+  }catch(e){ setMsg($("authMsg"), e.message, false); }
+}
+function logout(){
+  if(TOKEN){ api("/logout", {method:"POST"}).catch(()=>{}); }
+  TOKEN=""; localStorage.removeItem("token");
+  if(pollTimer) clearInterval(pollTimer);
+  $("app").classList.add("hidden"); $("auth").classList.remove("hidden");
+}
+
+// ---------- App ----------
+async function showApp(){
+  $("auth").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("whoami").textContent = $("email").value.trim();
+  await Promise.all([loadExchanges(), loadConfig()]);
+  refreshStatus();
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshStatus, 4000);
+}
+
+async function loadExchanges(){
+  const {exchanges} = await api("/exchanges");
+  const box = $("exchangeChips");
+  box.innerHTML = "";
+  if(!exchanges.length){ box.innerHTML = '<span class="muted">Aucun exchange connecté.</span>'; }
+  exchanges.forEach(ex=>{
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `<b>${ex}</b>`;
+    const del = document.createElement("button");
+    del.className="danger"; del.textContent="✕";
+    del.onclick = async ()=>{ await api("/exchanges/"+ex, {method:"DELETE"}); loadExchanges(); };
+    chip.appendChild(del);
+    box.appendChild(chip);
+  });
+}
+
+async function addExchange(){
+  const ex = $("exSelect").value;
+  const body = {api_key:$("exKey").value.trim(), secret:$("exSecret").value.trim(),
+                passphrase: PASSPHRASE_EX.includes(ex) ? $("exPass").value.trim() : ""};
+  if(!body.api_key || !body.secret){ setMsg($("exMsg"),"Clé et secret obligatoires.",false); return; }
+  try{
+    await api("/exchanges/"+ex, {method:"PUT", body});
+    $("exKey").value=""; $("exSecret").value=""; $("exPass").value="";
+    setMsg($("exMsg"), ex+" enregistré.", true);
+    loadExchanges();
+  }catch(e){ setMsg($("exMsg"), e.message, false); }
+}
+
+async function loadConfig(){
+  const c = await api("/config");
+  $("dryRun").checked = !!c.dry_run;
+  $("pairs").value = (c.pairs||[]).join(", ");
+  $("minProfit").value = (c.min_profit_threshold*100).toFixed(2).replace(/\.?0+$/,"");
+  $("maxTrade").value = c.max_trade_size_quote;
+  $("topMovers").value = c.top_movers;
+}
+
+async function saveConfig(){
+  const pairs = $("pairs").value.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean);
+  const body = {
+    dry_run: $("dryRun").checked,
+    pairs,
+    min_profit_threshold: (parseFloat($("minProfit").value)||0)/100,
+    max_trade_size_quote: parseFloat($("maxTrade").value)||0,
+    top_movers: parseInt($("topMovers").value)||0,
+  };
+  try{
+    await api("/config", {method:"PUT", body});
+    setMsg($("cfgMsg"), "Réglages enregistrés. (Redémarre le bot pour les appliquer.)", true);
+  }catch(e){ setMsg($("cfgMsg"), e.message, false); }
+}
+
+async function startBot(){
+  setMsg($("cfgMsg"),"");
+  try{ await api("/bot/start", {method:"POST"}); refreshStatus(); }
+  catch(e){ $("botError").textContent = e.message; }
+}
+async function stopBot(){ try{ await api("/bot/stop", {method:"POST"}); refreshStatus(); }catch(e){} }
+
+function renderStatus(s){
+  const pill = $("statusPill");
+  const map = {running:["on","en cours"], connecting:["off","connexion..."],
+               error:["err","erreur"], stopped:["off","arrêté"]};
+  const [cls,label] = map[s.status] || ["off", s.status||"arrêté"];
+  pill.className = "pill "+cls; pill.textContent = label;
+
+  const mode = $("modePill");
+  if(s.status==="stopped"){ mode.textContent=""; mode.className="pill off"; }
+  else { const real = s.dry_run===false;
+    mode.textContent = real ? "réel" : "démo";
+    mode.className = "pill " + (real ? "err" : "on"); }
+
+  $("botError").textContent = s.error || "";
+  const sum = s.summary||{};
+  $("scanInfo").textContent = (s.status==="running")
+    ? `${sum.exchanges||0} exchange(s) scanné(s).` : "";
+
+  const rows = $("oppRows"); rows.innerHTML="";
+  const opps = s.opportunities||[];
+  if(!opps.length){ rows.innerHTML='<tr><td colspan="4" class="muted">Aucune opportunité pour l\'instant.</td></tr>'; return; }
+  opps.slice(0,15).forEach(o=>{
+    const pct = (o.net_profit_fraction*100);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${o.pair}</b></td><td>${o.buy_exchange}</td><td>${o.sell_exchange}</td>
+      <td class="num ${pct>=0?'good':'bad'}">${pct>=0?'+':''}${pct.toFixed(3)} %</td>`;
+    rows.appendChild(tr);
+  });
+}
+async function refreshStatus(){
+  try{ renderStatus(await api("/bot/status")); }catch(e){}
+}
+
+// ---------- wiring ----------
+$("exSelect").onchange = e => $("passWrap").classList.toggle("hidden", !PASSPHRASE_EX.includes(e.target.value));
+$("loginBtn").onclick = login;
+$("registerBtn").onclick = register;
+$("logoutBtn").onclick = logout;
+$("addExBtn").onclick = addExchange;
+$("saveCfgBtn").onclick = saveConfig;
+$("startBtn").onclick = startBot;
+$("stopBtn").onclick = stopBot;
+$("password").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
+
+if(TOKEN){ showApp(); }
+</script>
+</body>
+</html>

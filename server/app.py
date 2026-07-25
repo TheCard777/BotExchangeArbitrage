@@ -24,9 +24,13 @@ Design notes / honesty:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+
+_INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 from server.crypto_box import SecretConfigError
 from server.engine import BotManager
@@ -69,6 +73,10 @@ def create_app(store: Store | None = None, manager: BotManager | None = None) ->
     app = FastAPI(title="Plateforme Arbitrage", version="1", lifespan=lifespan)
     app.state.store = store or Store()
     app.state.manager = manager or BotManager(app.state.store)
+
+    @app.get("/", response_class=HTMLResponse)
+    def index():
+        return _INDEX_HTML.read_text(encoding="utf-8")
 
     def current_user(authorization: str = Header(default="")) -> int:
         token = ""

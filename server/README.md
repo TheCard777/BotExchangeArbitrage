@@ -22,11 +22,12 @@ scanne les opportunités d'arbitrage pour chacun d'eux, côté serveur.
 - **Réglages par utilisateur** : paires, seuil de profit, taille max, top movers.
 - **Mode démonstration par défaut** (`dry_run = true`) : aucun ordre réel tant
   que l'utilisateur n'active pas explicitement le mode réel.
-- **API REST** (JSON) prête à brancher sur n'importe quel front-end.
+- **API REST** (JSON) + une **page web** (tableau de bord) servie sur `/` :
+  inscription/connexion, ajout des clés, réglages, démarrer/arrêter le bot et
+  voir les opportunités en direct — sans écrire une ligne de code.
 
 ## Ce que ça ne fait PAS encore (volontairement)
 
-- Pas de front-end (page web) — juste l'API. C'est à construire par-dessus.
 - Pas de facturation / abonnements.
 - Pas d'exécution d'ordres réels multi-utilisateurs durcie (le scan tourne ;
   l'activation du trading réel à grande échelle demande l'audit ci-dessous).
@@ -50,7 +51,9 @@ export BOT_PLATFORM_SECRET="colle_la_cle_ici"
 uvicorn "server.app:get_app" --factory --reload
 ```
 
-Docs interactives : http://127.0.0.1:8000/docs
+Ouvre ensuite **http://127.0.0.1:8000/** → la page web (inscription, connexion,
+clés, réglages, démarrer/arrêter le bot).
+Docs interactives de l'API : http://127.0.0.1:8000/docs
 
 ### Exemple d'utilisation (curl)
 
